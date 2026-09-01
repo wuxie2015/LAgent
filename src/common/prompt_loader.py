@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 
 class PromptLoadError(RuntimeError):
@@ -17,4 +19,5 @@ def load_system_prompt() -> str:
         raise PromptLoadError(f"系统提示词不存在：{prompt_path}") from exc
     if not prompt:
         raise PromptLoadError(f"系统提示词为空：{prompt_path}")
-    return prompt
+    current_date = datetime.now(ZoneInfo("Asia/Tokyo")).date().isoformat()
+    return prompt.replace("{{CURRENT_DATE}}", current_date)

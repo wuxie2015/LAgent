@@ -25,6 +25,7 @@ class Settings:
     model: str
     tavily_api_key: str | None
     search_result_limit: int
+    log_level: str
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -34,4 +35,5 @@ class Settings:
             model=os.getenv("OLLAMA_MODEL", "gpt-oss:120b-cloud"),
             tavily_api_key=os.getenv("TAVILY_API_KEY") or None,
             search_result_limit=int(os.getenv("SEARCH_RESULT_LIMIT", "5")),
+            log_level=os.getenv("LOG_LEVEL", "INFO"),
         )

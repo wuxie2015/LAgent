@@ -2,6 +2,7 @@ import unittest
 
 from src.application.agent import Agent
 from src.common import load_system_prompt
+from src.domain import ToolExecutionEvent
 from src.tools import WebSearchTool
 
 
@@ -45,6 +46,16 @@ class AgentTests(unittest.TestCase):
         self.assertIn("满足要求", answer)
         self.assertEqual(search.queries, ["Python"])
         self.assertEqual(model.calls[1][-1]["role"], "tool")
+
+    def test_reports_tool_execution_events(self):
+        events: list[ToolExecutionEvent] = []
+        agent = Agent(FakeModel(), [FakeSearchTool()], load_system_prompt(), on_tool_event=events.append)
+
+        agent.ask("找到 Python 官方网站")
+
+        self.assertEqual([event.phase for event in events], ["started", "completed"])
+        self.assertEqual(events[0].tool_name, "web_search")
+        self.assertEqual(events[1].result["results"][0]["url"], "https://python.org")
 
 
 if __name__ == "__main__":

@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 import json
+import ssl
 from typing import Any
 from urllib.request import Request, urlopen
+
+import certifi
+
+from ..common.logging_config import get_logger
 
 
 class WebSearchTool:
@@ -27,10 +32,13 @@ class WebSearchTool:
         self.result_limit = result_limit
 
     def run(self, query: str) -> dict[str, Any]:
+        logger = get_logger()
         if not query.strip():
+            logger.warning("web_search_rejected_empty_query")
             return {"error": "搜索词不能为空。"}
 
         if not self.api_key:
+            logger.warning("web_search_missing_api_key")
             return {
                 "error": "网页搜索尚未配置。请将 Tavily API Key 写入本地 .env 的 TAVILY_API_KEY 后重试。"
             }
@@ -51,9 +59,12 @@ class WebSearchTool:
             method="POST",
         )
         try:
-            with urlopen(request, timeout=20) as response:
+            logger.info("web_search_request provider=tavily query_length=%d", len(query))
+            ssl_context = ssl.create_default_context(cafile=certifi.where())
+            with urlopen(request, timeout=20, context=ssl_context) as response:
                 payload = json.loads(response.read().decode("utf-8"))
         except Exception as exc:  # Return an error to the model rather than ending the chat.
+            logger.exception("web_search_failed provider=tavily error_type=%s", type(exc).__name__)
             return {"error": f"搜索请求失败：{exc}"}
 
         results = [
@@ -65,4 +76,5 @@ class WebSearchTool:
             for item in payload.get("results", [])[: self.result_limit]
         ]
 
+        logger.info("web_search_response provider=tavily results=%d", len(results))
         return {"query": query, "results": results, "note": "请只基于这些结果作答，并在结论旁附 URL。"}
