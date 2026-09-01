@@ -2,6 +2,8 @@
 
 本地运行的个人终端 Agent：通过 Ollama 调用 `gpt-oss:120b-cloud`，第一项能力是网页搜索。
 
+运行环境：Python 3.10 或更新版本。
+
 ## 启动
 
 确认 Ollama 已启动且模型可用：
@@ -18,6 +20,8 @@ python3 -m lin_agent
 ```
 
 不需要 OpenAI API Key。默认连接 `http://127.0.0.1:11434` 并使用 `gpt-oss:120b-cloud`。
+
+网页搜索通过 Tavily 的搜索 API 提供。将 Tavily Key 填入本地 `.env` 的 `TAVILY_API_KEY`；它不会提交到 Git。若未配置，普通对话仍可用，但 Agent 会说明网页搜索尚未配置。
 
 ## 命令
 

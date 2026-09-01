@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import html
-import re
+import json
 from typing import Any
-from urllib.parse import quote_plus, unquote, urlparse
 from urllib.request import Request, urlopen
 
 
@@ -24,36 +22,47 @@ class WebSearchTool:
         },
     }
 
-    def __init__(self, result_limit: int = 5) -> None:
+    def __init__(self, api_key: str | None, result_limit: int = 5) -> None:
+        self.api_key = api_key
         self.result_limit = result_limit
 
     def run(self, query: str) -> dict[str, Any]:
         if not query.strip():
             return {"error": "搜索词不能为空。"}
 
+        if not self.api_key:
+            return {
+                "error": "网页搜索尚未配置。请将 Tavily API Key 写入本地 .env 的 TAVILY_API_KEY 后重试。"
+            }
+
+        payload = json.dumps(
+            {
+                "api_key": self.api_key,
+                "query": query,
+                "search_depth": "basic",
+                "max_results": self.result_limit,
+                "include_answer": False,
+            }
+        ).encode("utf-8")
         request = Request(
-            f"https://html.duckduckgo.com/html/?q={quote_plus(query)}",
-            headers={"User-Agent": "LinAgent/0.1 (+local personal agent)"},
+            "https://api.tavily.com/search",
+            data=payload,
+            headers={"Content-Type": "application/json", "User-Agent": "LinAgent/0.1"},
+            method="POST",
         )
         try:
             with urlopen(request, timeout=20) as response:
-                page = response.read().decode("utf-8", errors="replace")
+                payload = json.loads(response.read().decode("utf-8"))
         except Exception as exc:  # Return an error to the model rather than ending the chat.
             return {"error": f"搜索请求失败：{exc}"}
 
-        links = re.findall(r'class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>', page, re.S)
-        snippets = re.findall(r'class="result__snippet"[^>]*>(.*?)</(?:a|span)>', page, re.S)
-        results = []
-        for index, (link, title) in enumerate(links[: self.result_limit]):
-            # DuckDuckGo sometimes wraps destination URLs in a redirect parameter.
-            parsed = urlparse(html.unescape(link))
-            destination = unquote(parsed.query.split("uddg=", 1)[-1].split("&", 1)[0]) if "uddg=" in parsed.query else link
-            results.append(
-                {
-                    "title": re.sub(r"<[^>]+>", "", html.unescape(title)).strip(),
-                    "url": destination,
-                    "snippet": re.sub(r"<[^>]+>", "", html.unescape(snippets[index])).strip() if index < len(snippets) else "",
-                }
-            )
+        results = [
+            {
+                "title": item.get("title", ""),
+                "url": item.get("url", ""),
+                "snippet": item.get("content", ""),
+            }
+            for item in payload.get("results", [])[: self.result_limit]
+        ]
 
         return {"query": query, "results": results, "note": "请只基于这些结果作答，并在结论旁附 URL。"}

@@ -10,7 +10,7 @@ def main() -> None:
     settings = Settings.from_env()
     agent = Agent(
         OllamaClient(settings.ollama_host, settings.model),
-        WebSearchTool(settings.search_result_limit),
+        WebSearchTool(settings.tavily_api_key, settings.search_result_limit),
     )
     print(f"Lin Agent 已启动（模型：{settings.model}）。输入 /help 查看命令。")
 

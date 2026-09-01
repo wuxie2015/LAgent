@@ -23,6 +23,7 @@ def _load_dotenv(path: str = ".env") -> None:
 class Settings:
     ollama_host: str
     model: str
+    tavily_api_key: str | None
     search_result_limit: int
 
     @classmethod
@@ -31,5 +32,6 @@ class Settings:
         return cls(
             ollama_host=os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/"),
             model=os.getenv("OLLAMA_MODEL", "gpt-oss:120b-cloud"),
+            tavily_api_key=os.getenv("TAVILY_API_KEY") or None,
             search_result_limit=int(os.getenv("SEARCH_RESULT_LIMIT", "5")),
         )
