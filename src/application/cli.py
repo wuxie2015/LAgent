@@ -1,16 +1,17 @@
 from __future__ import annotations
 
-from .agent import Agent
-from .config import Settings
-from .ollama import OllamaClient, OllamaError
-from .tools import WebSearchTool
+from .agent import Agent, AgentStateError
+from ..common import Settings, load_system_prompt
+from ..service import OllamaClient, OllamaError
+from ..tools import WebSearchTool
 
 
 def main() -> None:
     settings = Settings.from_env()
     agent = Agent(
-        OllamaClient(settings.ollama_host, settings.model),
-        WebSearchTool(settings.tavily_api_key, settings.search_result_limit),
+        client=OllamaClient(settings.ollama_host, settings.model),
+        tools=[WebSearchTool(settings.tavily_api_key, settings.search_result_limit)],
+        system_prompt=load_system_prompt(),
     )
     print(f"Lin Agent 已启动（模型：{settings.model}）。输入 /help 查看命令。")
 
@@ -31,12 +32,12 @@ def main() -> None:
             print("当前会话已清除。")
             continue
         if text == "/help":
-            print("/reset 清除会话；/exit 退出。实时信息会自动使用网页搜索。")
+            print("/reset 清除会话；/exit 退出。工具会自动执行并由 Agent 验证结果。")
             continue
 
         try:
             print(f"\nAgent：{agent.ask(text)}")
-        except OllamaError as exc:
+        except (AgentStateError, OllamaError) as exc:
             print(f"\n错误：{exc}")
 
 

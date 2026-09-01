@@ -2,7 +2,7 @@ import json
 import unittest
 from unittest.mock import patch
 
-from lin_agent.tools.web_search import WebSearchTool
+from src.tools.web_search import WebSearchTool
 
 
 class _Response:
@@ -23,7 +23,7 @@ class WebSearchToolTests(unittest.TestCase):
         response = WebSearchTool(None).run("Python")
         self.assertIn("Tavily API Key", response["error"])
 
-    @patch("lin_agent.tools.web_search.urlopen", return_value=_Response())
+    @patch("src.tools.web_search.urlopen", return_value=_Response())
     def test_maps_tavily_results(self, _urlopen):
         response = WebSearchTool("test-key", result_limit=1).run("Python")
         self.assertEqual(response["results"][0]["url"], "https://python.org")
