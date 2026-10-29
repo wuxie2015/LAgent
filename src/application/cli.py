@@ -4,7 +4,21 @@ import json
 
 from .agent import Agent, AgentStateError
 from ..common import Settings, configure_logging, load_system_prompt
-from ..domain import ToolExecutionEvent
+from ..domain import ModelExecutionEvent, ToolExecutionEvent
+
+
+def _show_model_event(event: ModelExecutionEvent) -> None:
+    if event.phase == "requested":
+        print(
+            f"\n[模型调用 · 第 {event.round_number} 轮]\n"
+            f"{json.dumps(event.messages, ensure_ascii=False, indent=2)}"
+        )
+        return
+
+    print(
+        f"[模型返回 · 第 {event.round_number} 轮]\n"
+        f"{json.dumps(event.response, ensure_ascii=False, indent=2)}"
+    )
 from ..service import OllamaClient, OllamaError
 from ..tools import WebSearchTool
 
@@ -15,20 +29,10 @@ def _show_tool_event(event: ToolExecutionEvent) -> None:
         print(f"\n[工具调用 · 第 {event.round_number} 轮] {event.tool_name} {arguments}")
         return
 
-    result = event.result or {}
-    if error := result.get("error"):
-        print(f"[工具返回] {event.tool_name}：失败（{error}）")
-        return
-
-    results = result.get("results")
-    if isinstance(results, list):
-        titles = [item.get("title", "") for item in results[:3] if isinstance(item, dict)]
-        title_summary = "；".join(title for title in titles if title)
-        suffix = f"；示例：{title_summary}" if title_summary else ""
-        print(f"[工具返回] {event.tool_name}：获得 {len(results)} 条结果{suffix}")
-        return
-
-    print(f"[工具返回] {event.tool_name}：已完成")
+    print(
+        f"[工具返回] {event.tool_name}\n"
+        f"{json.dumps(event.result or {}, ensure_ascii=False, indent=2)}"
+    )
 
 
 def main() -> None:
@@ -39,6 +43,7 @@ def main() -> None:
         tools=[WebSearchTool(settings.tavily_api_key, settings.search_result_limit)],
         system_prompt=load_system_prompt(),
         on_tool_event=_show_tool_event,
+        on_model_event=_show_model_event,
     )
     print(f"Lin Agent 已启动（模型：{settings.model}）。输入 /help 查看命令。")
     logger.info("agent_started model=%s", settings.model)
@@ -46,6 +51,9 @@ def main() -> None:
     while True:
         try:
             text = input("\n你：").strip()
+        except UnicodeDecodeError:
+            print("\n输入解码失败：终端收到的内容不是有效的 UTF-8。请切换终端编码为 UTF-8 后重新输入。")
+            continue
         except (EOFError, KeyboardInterrupt):
             print("\n再见。")
             return

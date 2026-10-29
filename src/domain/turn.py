@@ -27,3 +27,11 @@ class ToolExecutionEvent:
     tool_name: str
     arguments: dict[str, Any]
     result: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True)
+class ModelExecutionEvent:
+    phase: str
+    round_number: int
+    messages: list[dict[str, Any]]
+    response: dict[str, Any] | None = None
