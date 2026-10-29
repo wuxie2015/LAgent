@@ -4,7 +4,7 @@ import json
 
 from .agent import Agent, AgentStateError
 from ..common import Settings, configure_logging, load_system_prompt
-from ..domain import ModelExecutionEvent, ToolExecutionEvent
+from ..domain import DEFAULT_MEMORY_PATH, Memory, MemoryError, ModelExecutionEvent, ToolExecutionEvent
 
 
 def _show_model_event(event: ModelExecutionEvent) -> None:
@@ -20,7 +20,7 @@ def _show_model_event(event: ModelExecutionEvent) -> None:
         f"{json.dumps(event.response, ensure_ascii=False, indent=2)}"
     )
 from ..service import OllamaClient, OllamaError
-from ..tools import WebSearchTool
+from ..tools import ShellTool, WebSearchTool
 
 
 def _show_tool_event(event: ToolExecutionEvent) -> None:
@@ -38,10 +38,17 @@ def _show_tool_event(event: ToolExecutionEvent) -> None:
 def main() -> None:
     settings = Settings.from_env()
     logger = configure_logging(settings.log_level)
+    system_prompt = load_system_prompt()
+    try:
+        memory = Memory(system_prompt, DEFAULT_MEMORY_PATH)
+    except MemoryError as exc:
+        print(f"错误：{exc}")
+        return
     agent = Agent(
         client=OllamaClient(settings.ollama_host, settings.model),
-        tools=[WebSearchTool(settings.tavily_api_key, settings.search_result_limit)],
-        system_prompt=load_system_prompt(),
+        tools=[WebSearchTool(settings.tavily_api_key, settings.search_result_limit), ShellTool()],
+        system_prompt=system_prompt,
+        memory=memory,
         on_tool_event=_show_tool_event,
         on_model_event=_show_model_event,
     )
@@ -64,8 +71,11 @@ def main() -> None:
             print("再见。")
             return
         if text == "/reset":
-            agent.reset()
-            print("当前会话已清除。")
+            try:
+                agent.reset()
+                print("当前会话及已保存的历史已清除。")
+            except MemoryError as exc:
+                print(f"错误：{exc}")
             continue
         if text == "/help":
             print("/reset 清除会话；/exit 退出。工具会自动执行并由 Agent 验证结果。")
@@ -73,7 +83,7 @@ def main() -> None:
 
         try:
             print(f"\nAgent：{agent.ask(text)}")
-        except (AgentStateError, OllamaError) as exc:
+        except (AgentStateError, OllamaError, MemoryError) as exc:
             print(f"\n错误：{exc}")
 
 

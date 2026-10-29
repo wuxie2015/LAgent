@@ -6,6 +6,7 @@ from typing import Any, Callable
 
 from ..common.logging_config import get_logger
 from ..domain import AgentTool, ModelExecutionEvent, ModelGateway, ToolExecutionEvent
+from ..domain.memory import Memory
 
 
 class AgentStateError(RuntimeError):
@@ -24,21 +25,25 @@ class Agent:
         system_prompt: str,
         on_tool_event: Callable[[ToolExecutionEvent], None] | None = None,
         on_model_event: Callable[[ModelExecutionEvent], None] | None = None,
+        memory: Memory | None = None,
     ) -> None:
         self.client = client
         self.tools = {tool.name: tool for tool in tools}
         self.system_prompt = system_prompt
         self.on_tool_event = on_tool_event
         self.on_model_event = on_model_event
-        self.messages: list[dict[str, Any]] = []
-        self.reset()
+        self.memory = memory if memory is not None else Memory(system_prompt)
+
+    @property
+    def messages(self) -> list[dict[str, Any]]:
+        return self.memory.messages
 
     def reset(self) -> None:
-        self.messages = [{"role": "system", "content": self.system_prompt}]
+        self.memory.reset()
 
     def ask(self, text: str) -> str:
         logger = get_logger()
-        self.messages.append({"role": "user", "content": text})
+        self.memory.append({"role": "user", "content": text})
         logger.info("agent_turn_started message_count=%d", len(self.messages))
 
         for round_number in range(1, self.max_tool_rounds + 1):
@@ -46,7 +51,7 @@ class Agent:
             response = self.client.chat(self.messages, [tool.definition for tool in self.tools.values()])
             self._emit_model_event("completed", round_number, self.messages, response)
             message = response.get("message", {})
-            self.messages.append(message)
+            self.memory.append(message)
             calls = message.get("tool_calls") or []
             if not calls:
                 logger.info("agent_turn_completed tool_rounds=%d", round_number - 1)
@@ -64,7 +69,7 @@ class Agent:
 
             for (tool_name, arguments), result in zip(tool_calls, results):
                 self._emit_tool_event("completed", round_number, tool_name, arguments, result)
-                self.messages.append(
+                self.memory.append(
                     {
                         "role": "tool",
                         "content": json.dumps(
@@ -92,8 +97,10 @@ class Agent:
         return tool_name, arguments
 
     def _execute_tool(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
-        # Current tools accept a search query. Future tools can receive their own argument adapter here.
-        return self.tools[tool_name].run(str(arguments.get("query", "")))
+        try:
+            return self.tools[tool_name].run(**arguments)
+        except Exception as exc:
+            return {"error": f"工具执行失败：{exc}"}
 
     def _emit_tool_event(
         self,

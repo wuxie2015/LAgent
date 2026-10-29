@@ -16,5 +16,17 @@ class AgentTool(Protocol):
     name: str
     definition: dict[str, Any]
 
-    def run(self, query: str) -> dict[str, Any]:
-        """Execute a read-only tool call and return JSON-serializable output."""
+    def run(self, **arguments: Any) -> dict[str, Any]:
+        """Execute a tool call and return JSON-serializable output."""
+
+
+class MemoryStore(Protocol):
+    def load(self) -> Any: ...
+    def commit(self, state: Any, expected_revision: int) -> None: ...
+    def archive(self, turn: dict[str, Any], epoch: str) -> dict[str, Any]: ...
+    def load_archived_turn(self, ref: dict[str, Any]) -> dict[str, Any]: ...
+
+
+class MemoryExtractor(Protocol):
+    def extract_facts(self, batch: dict[str, Any]) -> list[dict[str, Any]]: ...
+    def propose_task_changes(self, batch: dict[str, Any]) -> list[dict[str, Any]]: ...
