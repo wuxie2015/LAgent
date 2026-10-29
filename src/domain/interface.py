@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
+from .memory.state import MemoryState
+
 
 class ModelGateway(Protocol):
     def chat(
@@ -21,8 +23,8 @@ class AgentTool(Protocol):
 
 
 class MemoryStore(Protocol):
-    def load(self) -> Any: ...
-    def commit(self, state: Any, expected_revision: int) -> None: ...
+    def load(self) -> MemoryState: ...
+    def commit(self, state: MemoryState, expected_revision: int) -> None: ...
     def archive(self, turn: dict[str, Any], epoch: str) -> dict[str, Any]: ...
     def load_archived_turn(self, ref: dict[str, Any]) -> dict[str, Any]: ...
 
