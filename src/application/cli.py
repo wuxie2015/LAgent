@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from contextlib import ExitStack
 import json
+import sqlite3
 
 from .agent import Agent, AgentStateError, CompletedTurnStorageError
 from .memory_manager import MemoryManager
@@ -14,6 +15,10 @@ from ..service import OllamaClient, OllamaError
 from ..service.memory_store import JsonMemoryStore
 from ..service.memory_extractor import ModelMemoryExtractor
 from ..tools import ShellTool, WebSearchTool
+from ..tools.schedule import ScheduleTool
+from .scheduler import Scheduler
+from ..service.notifications import NotificationDispatcher
+from ..service.schedule_store import ScheduleStore
 
 
 def _show_model_event(event: ModelExecutionEvent, debug: bool = False) -> None:
@@ -81,11 +86,38 @@ def memory_command(text: str, memory: MemoryManager) -> bool:
     return True
 
 
-HELP = """/reset 清除短期对话（保留事实和任务）；/exit 退出。
+def schedule_command(text: str, tool: ScheduleTool | None) -> bool:
+    parts = text.split()
+    if not parts or parts[0] != "/schedule":
+        return False
+    if tool is None:
+        print("计划任务功能未启用；设置 SCHEDULER_ENABLED=true 后重启。")
+        return True
+    if len(parts) == 2 and parts[1] == "list":
+        result = tool.run(action="list")
+    elif len(parts) == 2 and parts[1] == "now":
+        result = tool.run(action="now")
+    elif len(parts) == 3 and parts[1] == "get":
+        result = tool.run(action="get", task_id=parts[2])
+    elif len(parts) == 2 and parts[1] == "history":
+        result = tool.run(action="history")
+    elif len(parts) == 3 and parts[1] == "history":
+        result = tool.run(action="history", task_id=parts[2])
+    elif len(parts) == 3 and parts[1] in {"pause", "resume", "cancel"}:
+        result = tool.run(action=parts[1], task_id=parts[2])
+    else:
+        print("用法：/schedule list|now|history [id]|get <id>|pause|resume|cancel <id>")
+        return True
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return True
+
+
+HELP = """/reset 清除短期对话（保留事实和任务，不影响计划任务）；/exit 退出。
 /memory 查看记忆状态；/memory facts 查看事实；/memory tasks 查看作业。
 /memory fact <id> 查看事实；/memory forget <id> 删除事实。
 /memory retry 重试维护；/memory clear-all 确认后清除全部。
-/task use <id> 选择作业；/task cancel <id> 取消作业。"""
+/task use <id> 选择作业；/task cancel <id> 取消作业。
+/schedule list|now|history [id]|get <id>|pause|resume|cancel <id> 管理计划任务。"""
 
 
 def main() -> None:
@@ -98,8 +130,50 @@ def main() -> None:
             extractor = ModelMemoryExtractor(OllamaClient(settings.ollama_host, settings.memory_model or settings.model,
                 timeout=settings.memory_policy.maintenance_timeout, json_mode=True), settings.memory_policy.extraction_max_chars)
             memory = MemoryManager(system_prompt, store, extractor, settings.memory_policy)
+            schedule_tool = None
+            tools = [WebSearchTool(settings.tavily_api_key, settings.search_result_limit), ShellTool()]
+            if settings.scheduler_enabled:
+                settings.schedule_db.parent.mkdir(parents=True, exist_ok=True)
+                schedule_store = ScheduleStore(settings.schedule_db)
+                dispatcher = NotificationDispatcher(
+                    console_enabled=settings.notification_console_enabled,
+                    smtp_host=settings.smtp_host, smtp_port=settings.smtp_port,
+                    smtp_from=settings.smtp_from, smtp_to=settings.smtp_to,
+                    smtp_user=settings.smtp_user, smtp_password=settings.smtp_password,
+                    smtp_security=settings.smtp_security,
+                    webhook_url=settings.notification_webhook_url,
+                    webhook_token=settings.notification_webhook_token,
+                    timeout=settings.notification_timeout,
+                )
+                dispatcher.validate_channel(settings.schedule_default_channel)
+
+                def execute_scheduled(content: str) -> str:
+                    # A scheduled run has isolated, in-memory context and search only.
+                    prompt = load_system_prompt() + "\n\n计划任务约束：只读执行，使用网页搜索工具获取信息；不得调用 Shell、修改文件或声称已完成未执行的外部操作。"
+                    background = Agent(
+                        client=OllamaClient(settings.ollama_host, settings.model, timeout=30),
+                        tools=[WebSearchTool(settings.tavily_api_key, settings.search_result_limit)],
+                        system_prompt=prompt,
+                    )
+                    return background.ask(content)
+
+                scheduler = Scheduler(
+                    schedule_store, dispatcher, execute_scheduled,
+                    poll_interval=settings.schedule_poll_interval,
+                    max_notification_attempts=settings.schedule_max_notification_attempts,
+                    on_error=lambda error: print(f"\n计划任务后台已停止（{type(error).__name__}）；新建和修改计划任务已暂停。"),
+                )
+                stack.callback(scheduler.stop)
+                scheduler.start()
+                schedule_tool = ScheduleTool(
+                    schedule_store, dispatcher, timezone_name=settings.schedule_timezone,
+                    default_channel=settings.schedule_default_channel,
+                    grace_seconds=settings.schedule_grace_seconds,
+                    writes_available=lambda: scheduler.fatal_error is None,
+                )
+                tools.append(schedule_tool)
             agent = Agent(client=OllamaClient(settings.ollama_host, settings.model),
-                tools=[WebSearchTool(settings.tavily_api_key, settings.search_result_limit), ShellTool()],
+                tools=tools,
                 system_prompt=system_prompt, memory=memory,
                 on_tool_event=lambda e: _show_tool_event(e, settings.memory_debug_content),
                 on_model_event=lambda e: _show_model_event(e, settings.memory_debug_content))
@@ -128,8 +202,12 @@ def main() -> None:
                     print(HELP)
                     continue
                 try:
+                    if schedule_command(text, schedule_tool):
+                        continue
                     if memory_command(text, memory):
                         continue
+                    if schedule_tool is not None:
+                        schedule_tool.begin_request()
                     print(f"\nAgent：{agent.ask(text)}")
                 except CompletedTurnStorageError as exc:
                     print(f"\nAgent：{exc.answer}")
@@ -142,7 +220,7 @@ def main() -> None:
                     print("\n本轮已中断，不会自动重放工具调用。")
                 except (AgentStateError, OllamaError, MemoryError, OSError, ValueError) as exc:
                     print(f"\n错误：{exc}")
-    except (MemoryError, OSError, ValueError) as exc:
+    except (MemoryError, OSError, ValueError, RuntimeError, sqlite3.Error) as exc:
         print(f"启动失败：{exc}")
 
 

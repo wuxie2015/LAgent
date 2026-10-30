@@ -1,0 +1,4055 @@
+{
+  "root": "/Users/zhanglin/Documents/project/lin-agent",
+  "file_count": 45,
+  "files": [
+    {
+      "path": "scripts/verify_memory_model.py",
+      "language": "python",
+      "imports": [
+        "argparse",
+        "copy",
+        "json",
+        "pathlib",
+        "src.application.memory_manager",
+        "src.domain.memory.fact",
+        "src.domain.memory.task",
+        "src.service.memory_extractor",
+        "src.service.memory_store",
+        "src.service.ollama",
+        "sys",
+        "tempfile"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "function",
+          "name": "finish",
+          "line": 21,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "main",
+          "line": 27,
+          "parent": null,
+          "calls": [
+            "finish"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/__init__.py",
+      "language": "python",
+      "imports": [],
+      "exports": [],
+      "routes": [],
+      "symbols": []
+    },
+    {
+      "path": "src/__main__.py",
+      "language": "python",
+      "imports": [
+        ".application.cli"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": []
+    },
+    {
+      "path": "src/application/__init__.py",
+      "language": "python",
+      "imports": [],
+      "exports": [],
+      "routes": [],
+      "symbols": []
+    },
+    {
+      "path": "src/application/agent.py",
+      "language": "python",
+      "imports": [
+        "..common.logging_config",
+        "..domain",
+        "..domain.memory",
+        "..domain.memory.state",
+        ".memory_manager",
+        "__future__",
+        "concurrent.futures",
+        "json",
+        "typing"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "AgentStateError",
+          "line": 14,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "CompletedTurnStorageError",
+          "line": 18,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__init__",
+          "line": 19,
+          "parent": "CompletedTurnStorageError",
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "Agent",
+          "line": 24,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__init__",
+          "line": 29,
+          "parent": "Agent",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "messages",
+          "line": 46,
+          "parent": "Agent",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "reset",
+          "line": 49,
+          "parent": "Agent",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "ask",
+          "line": 52,
+          "parent": "Agent",
+          "calls": [
+            "AgentStateError",
+            "CompletedTurnStorageError"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "_parse_tool_call",
+          "line": 103,
+          "parent": "Agent",
+          "calls": [
+            "AgentStateError"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "_execute_tool",
+          "line": 118,
+          "parent": "Agent",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "_emit_tool_event",
+          "line": 124,
+          "parent": "Agent",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "_emit_model_event",
+          "line": 135,
+          "parent": "Agent",
+          "calls": []
+        }
+      ]
+    },
+    {
+      "path": "src/application/cli.py",
+      "language": "python",
+      "imports": [
+        "..common",
+        "..domain",
+        "..domain.memory",
+        "..domain.memory.privacy",
+        "..domain.memory.state",
+        "..service",
+        "..service.memory_extractor",
+        "..service.memory_store",
+        "..service.notifications",
+        "..service.schedule_store",
+        "..tools",
+        "..tools.schedule",
+        ".agent",
+        ".memory_manager",
+        ".scheduler",
+        "__future__",
+        "contextlib",
+        "json",
+        "sqlite3"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "function",
+          "name": "_show_model_event",
+          "line": 24,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "_show_tool_event",
+          "line": 31,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "memory_command",
+          "line": 46,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "schedule_command",
+          "line": 89,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "main",
+          "line": 123,
+          "parent": null,
+          "calls": [
+            "_show_model_event",
+            "_show_tool_event",
+            "memory_command",
+            "schedule_command"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "execute_scheduled",
+          "line": 150,
+          "parent": "main",
+          "calls": []
+        }
+      ]
+    },
+    {
+      "path": "src/application/context_builder.py",
+      "language": "python",
+      "imports": [
+        "..domain.memory",
+        "__future__",
+        "copy",
+        "datetime",
+        "json",
+        "re"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "function",
+          "name": "compact",
+          "line": 13,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "wire_messages",
+          "line": 22,
+          "parent": null,
+          "calls": [
+            "compact"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "ContextBuilder",
+          "line": 63,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__init__",
+          "line": 64,
+          "parent": "ContextBuilder",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "build",
+          "line": 68,
+          "parent": "ContextBuilder",
+          "calls": [
+            "compact",
+            "select",
+            "wire_messages"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "score",
+          "line": 83,
+          "parent": "build",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "select",
+          "line": 88,
+          "parent": "build",
+          "calls": []
+        }
+      ]
+    },
+    {
+      "path": "src/application/memory_manager.py",
+      "language": "python",
+      "imports": [
+        "..domain.memory",
+        "..domain.memory.conversation",
+        "..domain.memory.fact",
+        "..domain.memory.privacy",
+        "..domain.memory.state",
+        "..domain.memory.task",
+        ".context_builder",
+        "__future__",
+        "copy",
+        "json",
+        "re",
+        "time"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "MemoryManager",
+          "line": 17,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__init__",
+          "line": 18,
+          "parent": "MemoryManager",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "_commit",
+          "line": 34,
+          "parent": "MemoryManager",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "_recover",
+          "line": 46,
+          "parent": "MemoryManager",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "messages",
+          "line": 72,
+          "parent": "MemoryManager",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "current",
+          "line": 80,
+          "parent": "MemoryManager",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "begin_turn",
+          "line": 83,
+          "parent": "MemoryManager",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "append_message",
+          "line": 98,
+          "parent": "MemoryManager",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "record_tool_starts",
+          "line": 112,
+          "parent": "MemoryManager",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "record_tool_result",
+          "line": 124,
+          "parent": "MemoryManager",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "finish_turn",
+          "line": 135,
+          "parent": "MemoryManager",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "build_context",
+          "line": 153,
+          "parent": "MemoryManager",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "_batch",
+          "line": 161,
+          "parent": "MemoryManager",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "_fragments",
+          "line": 186,
+          "parent": "MemoryManager",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "_error",
+          "line": 212,
+          "parent": "MemoryManager",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "maintain",
+          "line": 223,
+          "parent": "MemoryManager",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "maintain_safely",
+          "line": 300,
+          "parent": "MemoryManager",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "reset",
+          "line": 312,
+          "parent": "MemoryManager",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "forget_fact",
+          "line": 324,
+          "parent": "MemoryManager",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "clear_all",
+          "line": 338,
+          "parent": "MemoryManager",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "use_task",
+          "line": 349,
+          "parent": "MemoryManager",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "cancel_task",
+          "line": 357,
+          "parent": "MemoryManager",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "summary",
+          "line": 367,
+          "parent": "MemoryManager",
+          "calls": []
+        }
+      ]
+    },
+    {
+      "path": "src/application/scheduler.py",
+      "language": "python",
+      "imports": [
+        "__future__",
+        "datetime",
+        "fcntl",
+        "logging",
+        "os",
+        "threading",
+        "typing"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "Scheduler",
+          "line": 20,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__init__",
+          "line": 21,
+          "parent": "Scheduler",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "_set_fatal",
+          "line": 50,
+          "parent": "Scheduler",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "_acquire_lock",
+          "line": 61,
+          "parent": "Scheduler",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "_release_lock",
+          "line": 78,
+          "parent": "Scheduler",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "start",
+          "line": 87,
+          "parent": "Scheduler",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "stop",
+          "line": 115,
+          "parent": "Scheduler",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "tick",
+          "line": 133,
+          "parent": "Scheduler",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "_tick_locked",
+          "line": 145,
+          "parent": "Scheduler",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "_execute_claimed",
+          "line": 164,
+          "parent": "Scheduler",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "_deliver",
+          "line": 186,
+          "parent": "Scheduler",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "_run",
+          "line": 201,
+          "parent": "Scheduler",
+          "calls": []
+        }
+      ]
+    },
+    {
+      "path": "src/common/__init__.py",
+      "language": "python",
+      "imports": [
+        ".config",
+        ".logging_config",
+        ".prompt_loader"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": []
+    },
+    {
+      "path": "src/common/config.py",
+      "language": "python",
+      "imports": [
+        "..domain.memory",
+        "__future__",
+        "dataclasses",
+        "math",
+        "os",
+        "pathlib",
+        "zoneinfo"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "function",
+          "name": "_load_dotenv",
+          "line": 12,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "Settings",
+          "line": 28,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "from_env",
+          "line": 59,
+          "parent": "Settings",
+          "calls": [
+            "_boolean",
+            "_bounded_float",
+            "_bounded_int",
+            "_load_dotenv",
+            "_memory_directory",
+            "_nonempty",
+            "_path_from_root",
+            "_positive_float",
+            "_positive_int",
+            "_timezone"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "_boolean",
+          "line": 101,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "_memory_directory",
+          "line": 108,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "_path_from_root",
+          "line": 114,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "_positive_float",
+          "line": 119,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "_positive_int",
+          "line": 129,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "_bounded_int",
+          "line": 139,
+          "parent": null,
+          "calls": [
+            "_positive_int"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "_bounded_float",
+          "line": 146,
+          "parent": null,
+          "calls": [
+            "_positive_float"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "_timezone",
+          "line": 153,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "_nonempty",
+          "line": 162,
+          "parent": null,
+          "calls": []
+        }
+      ]
+    },
+    {
+      "path": "src/common/logging_config.py",
+      "language": "python",
+      "imports": [
+        "__future__",
+        "logging",
+        "pathlib"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "function",
+          "name": "get_logger",
+          "line": 7,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "configure_logging",
+          "line": 16,
+          "parent": null,
+          "calls": [
+            "get_logger"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/common/prompt_loader.py",
+      "language": "python",
+      "imports": [
+        "__future__",
+        "datetime",
+        "pathlib",
+        "zoneinfo"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "PromptLoadError",
+          "line": 8,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "load_system_prompt",
+          "line": 12,
+          "parent": null,
+          "calls": [
+            "PromptLoadError"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/domain/__init__.py",
+      "language": "python",
+      "imports": [
+        ".interface",
+        ".memory",
+        ".turn"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": []
+    },
+    {
+      "path": "src/domain/interface.py",
+      "language": "python",
+      "imports": [
+        ".memory.state",
+        "__future__",
+        "typing"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "ModelGateway",
+          "line": 10,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "chat",
+          "line": 11,
+          "parent": "ModelGateway",
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "AgentTool",
+          "line": 17,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "run",
+          "line": 21,
+          "parent": "AgentTool",
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "MemoryStore",
+          "line": 25,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "load",
+          "line": 26,
+          "parent": "MemoryStore",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "commit",
+          "line": 27,
+          "parent": "MemoryStore",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "archive",
+          "line": 28,
+          "parent": "MemoryStore",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "load_archived_turn",
+          "line": 29,
+          "parent": "MemoryStore",
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "MemoryExtractor",
+          "line": 32,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "extract_facts",
+          "line": 33,
+          "parent": "MemoryExtractor",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "propose_task_changes",
+          "line": 34,
+          "parent": "MemoryExtractor",
+          "calls": []
+        }
+      ]
+    },
+    {
+      "path": "src/domain/memory/__init__.py",
+      "language": "python",
+      "imports": [
+        ".policy",
+        ".state",
+        "pathlib"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": []
+    },
+    {
+      "path": "src/domain/memory/conversation.py",
+      "language": "python",
+      "imports": [
+        ".state",
+        "__future__",
+        "typing"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "MessageRecord",
+          "line": 8,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "ToolExecution",
+          "line": 17,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "ConversationTurn",
+          "line": 28,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "message_record",
+          "line": 43,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "new_turn",
+          "line": 53,
+          "parent": null,
+          "calls": [
+            "message_record"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "validate_turn",
+          "line": 63,
+          "parent": null,
+          "calls": []
+        }
+      ]
+    },
+    {
+      "path": "src/domain/memory/fact.py",
+      "language": "python",
+      "imports": [
+        ".privacy",
+        ".state",
+        "__future__",
+        "datetime",
+        "json",
+        "typing"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "EvidenceRef",
+          "line": 11,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "Fact",
+          "line": 17,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "fact_key",
+          "line": 35,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "evidence_messages",
+          "line": 39,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "validate_fact",
+          "line": 56,
+          "parent": null,
+          "calls": [
+            "evidence_messages"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "merge_facts",
+          "line": 112,
+          "parent": null,
+          "calls": [
+            "fact_key",
+            "validate_fact"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/domain/memory/policy.py",
+      "language": "python",
+      "imports": [
+        "dataclasses"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "MemoryPolicy",
+          "line": 5,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__post_init__",
+          "line": 16,
+          "parent": "MemoryPolicy",
+          "calls": []
+        }
+      ]
+    },
+    {
+      "path": "src/domain/memory/privacy.py",
+      "language": "python",
+      "imports": [
+        "re",
+        "typing"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "function",
+          "name": "redact",
+          "line": 14,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "sensitive",
+          "line": 25,
+          "parent": null,
+          "calls": [
+            "redact"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/domain/memory/state.py",
+      "language": "python",
+      "imports": [
+        ".conversation",
+        "__future__",
+        "dataclasses",
+        "datetime",
+        "hashlib",
+        "json",
+        "typing",
+        "uuid"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "MemoryError",
+          "line": 11,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "StorageError",
+          "line": 15,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "ContextCapacityError",
+          "line": 19,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "now",
+          "line": 23,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "uid",
+          "line": 27,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "digest",
+          "line": 31,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "MemoryState",
+          "line": 36,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "to_dict",
+          "line": 54,
+          "parent": "MemoryState",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "from_dict",
+          "line": 58,
+          "parent": "MemoryState",
+          "calls": [
+            "MemoryError"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "validate",
+          "line": 68,
+          "parent": "MemoryState",
+          "calls": []
+        }
+      ]
+    },
+    {
+      "path": "src/domain/memory/task.py",
+      "language": "python",
+      "imports": [
+        ".fact",
+        ".privacy",
+        ".state",
+        "__future__",
+        "re",
+        "typing"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "TaskStep",
+          "line": 12,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "Task",
+          "line": 19,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "apply_tasks",
+          "line": 44,
+          "parent": null,
+          "calls": []
+        }
+      ]
+    },
+    {
+      "path": "src/domain/schedule.py",
+      "language": "python",
+      "imports": [
+        "datetime",
+        "zoneinfo"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "function",
+          "name": "_zone",
+          "line": 11,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "_parse",
+          "line": 20,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "utc_iso",
+          "line": 30,
+          "parent": null,
+          "calls": [
+            "_parse"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "_valid_local_candidates",
+          "line": 37,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "normalize_scheduled_time",
+          "line": 48,
+          "parent": null,
+          "calls": [
+            "_parse",
+            "_valid_local_candidates",
+            "_zone",
+            "utc_iso"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "_repeat_value",
+          "line": 69,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "_weekdays",
+          "line": 75,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "validate_rule",
+          "line": 91,
+          "parent": null,
+          "calls": [
+            "_repeat_value",
+            "_weekdays"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "validate_recurrence",
+          "line": 102,
+          "parent": null,
+          "calls": [
+            "_parse",
+            "_zone",
+            "validate_rule"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "next_occurrence",
+          "line": 115,
+          "parent": null,
+          "calls": [
+            "_parse",
+            "_valid_local_candidates",
+            "_zone",
+            "utc_iso",
+            "validate_recurrence"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/domain/turn.py",
+      "language": "python",
+      "imports": [
+        "__future__",
+        "dataclasses",
+        "typing"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "ToolRequest",
+          "line": 8,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "AgentTurn",
+          "line": 14,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "awaits_tool_result",
+          "line": 19,
+          "parent": "AgentTurn",
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "ToolExecutionEvent",
+          "line": 24,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "ModelExecutionEvent",
+          "line": 33,
+          "parent": null,
+          "calls": []
+        }
+      ]
+    },
+    {
+      "path": "src/service/__init__.py",
+      "language": "python",
+      "imports": [
+        ".ollama"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": []
+    },
+    {
+      "path": "src/service/memory_extractor.py",
+      "language": "python",
+      "imports": [
+        "..domain.memory",
+        "__future__",
+        "json",
+        "pathlib"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "ModelMemoryExtractor",
+          "line": 9,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__init__",
+          "line": 10,
+          "parent": "ModelMemoryExtractor",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "_extract",
+          "line": 14,
+          "parent": "ModelMemoryExtractor",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "extract_facts",
+          "line": 40,
+          "parent": "ModelMemoryExtractor",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "propose_task_changes",
+          "line": 43,
+          "parent": "ModelMemoryExtractor",
+          "calls": []
+        }
+      ]
+    },
+    {
+      "path": "src/service/memory_store.py",
+      "language": "python",
+      "imports": [
+        "..domain.memory",
+        "..domain.memory.conversation",
+        "..domain.memory.privacy",
+        "..domain.memory.state",
+        "__future__",
+        "fcntl",
+        "json",
+        "os",
+        "pathlib",
+        "shutil",
+        "tempfile"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "JsonMemoryStore",
+          "line": 18,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__init__",
+          "line": 19,
+          "parent": "JsonMemoryStore",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__enter__",
+          "line": 25,
+          "parent": "JsonMemoryStore",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__exit__",
+          "line": 38,
+          "parent": "JsonMemoryStore",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "_path",
+          "line": 44,
+          "parent": "JsonMemoryStore",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "_write",
+          "line": 58,
+          "parent": "JsonMemoryStore",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "_read",
+          "line": 86,
+          "parent": "JsonMemoryStore",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "load",
+          "line": 92,
+          "parent": "JsonMemoryStore",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "commit",
+          "line": 103,
+          "parent": "JsonMemoryStore",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "archive",
+          "line": 119,
+          "parent": "JsonMemoryStore",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "load_archived_turn",
+          "line": 131,
+          "parent": "JsonMemoryStore",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "migrate",
+          "line": 141,
+          "parent": "JsonMemoryStore",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "orphan_count",
+          "line": 205,
+          "parent": "JsonMemoryStore",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "purge",
+          "line": 210,
+          "parent": "JsonMemoryStore",
+          "calls": []
+        }
+      ]
+    },
+    {
+      "path": "src/service/notifications.py",
+      "language": "python",
+      "imports": [
+        "__future__",
+        "email.message",
+        "json",
+        "smtplib",
+        "ssl",
+        "typing",
+        "urllib.error",
+        "urllib.parse",
+        "urllib.request"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "NotificationError",
+          "line": 15,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "_NoRedirectHandler",
+          "line": 19,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "redirect_request",
+          "line": 20,
+          "parent": "_NoRedirectHandler",
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "_no_header_newlines",
+          "line": 24,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "NotificationDispatcher",
+          "line": 29,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__init__",
+          "line": 36,
+          "parent": "NotificationDispatcher",
+          "calls": [
+            "_no_header_newlines"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "available_channels",
+          "line": 105,
+          "parent": "NotificationDispatcher",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "validate_channel",
+          "line": 115,
+          "parent": "NotificationDispatcher",
+          "calls": [
+            "NotificationError"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "send",
+          "line": 119,
+          "parent": "NotificationDispatcher",
+          "calls": [
+            "_no_header_newlines"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "_send_email",
+          "line": 134,
+          "parent": "NotificationDispatcher",
+          "calls": [
+            "NotificationError"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "_send_webhook",
+          "line": 162,
+          "parent": "NotificationDispatcher",
+          "calls": [
+            "NotificationError",
+            "_NoRedirectHandler"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/service/ollama.py",
+      "language": "python",
+      "imports": [
+        "..common.logging_config",
+        "__future__",
+        "json",
+        "typing",
+        "urllib.error",
+        "urllib.request"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "OllamaError",
+          "line": 11,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "OllamaClient",
+          "line": 15,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__init__",
+          "line": 16,
+          "parent": "OllamaClient",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "chat",
+          "line": 22,
+          "parent": "OllamaClient",
+          "calls": [
+            "OllamaError"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/service/schedule_store.py",
+      "language": "python",
+      "imports": [
+        "contextlib",
+        "datetime",
+        "hashlib",
+        "json",
+        "os",
+        "sqlite3",
+        "src.domain.schedule",
+        "uuid",
+        "zoneinfo"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "function",
+          "name": "_json",
+          "line": 26,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "_now",
+          "line": 30,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "_strict_text",
+          "line": 36,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "_strict_grace",
+          "line": 42,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "ScheduleStore",
+          "line": 48,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__init__",
+          "line": 49,
+          "parent": "ScheduleStore",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "_connection",
+          "line": 98,
+          "parent": "ScheduleStore",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "_task",
+          "line": 109,
+          "parent": "ScheduleStore",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "_run",
+          "line": 117,
+          "parent": "ScheduleStore",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "create",
+          "line": 120,
+          "parent": "ScheduleStore",
+          "calls": [
+            "_json",
+            "_now",
+            "_strict_grace",
+            "_strict_text",
+            "list"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "list",
+          "line": 157,
+          "parent": "ScheduleStore",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "get",
+          "line": 161,
+          "parent": "ScheduleStore",
+          "calls": [
+            "_strict_text"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "update",
+          "line": 168,
+          "parent": "ScheduleStore",
+          "calls": [
+            "_json",
+            "_now",
+            "_strict_grace",
+            "_strict_text",
+            "list"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "_set_status",
+          "line": 229,
+          "parent": "ScheduleStore",
+          "calls": [
+            "_now"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "pause",
+          "line": 247,
+          "parent": "ScheduleStore",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "resume",
+          "line": 250,
+          "parent": "ScheduleStore",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "cancel",
+          "line": 253,
+          "parent": "ScheduleStore",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "history",
+          "line": 256,
+          "parent": "ScheduleStore",
+          "calls": [
+            "_strict_text"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "claim_due",
+          "line": 264,
+          "parent": "ScheduleStore",
+          "calls": [
+            "_now",
+            "_strict_grace"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "save_result",
+          "line": 291,
+          "parent": "ScheduleStore",
+          "calls": [
+            "_now",
+            "_strict_text"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "notification_due",
+          "line": 309,
+          "parent": "ScheduleStore",
+          "calls": [
+            "_now"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "mark_delivered",
+          "line": 316,
+          "parent": "ScheduleStore",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "notification_failed",
+          "line": 333,
+          "parent": "ScheduleStore",
+          "calls": [
+            "_now"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "mark_failed",
+          "line": 366,
+          "parent": "ScheduleStore",
+          "calls": [
+            "_now"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "recover_interrupted",
+          "line": 379,
+          "parent": "ScheduleStore",
+          "calls": [
+            "_now"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "src/tools/__init__.py",
+      "language": "python",
+      "imports": [
+        ".schedule",
+        ".shell",
+        ".web_search"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": []
+    },
+    {
+      "path": "src/tools/schedule.py",
+      "language": "python",
+      "imports": [
+        "..domain.schedule",
+        "__future__",
+        "datetime",
+        "hashlib",
+        "json",
+        "sqlite3",
+        "threading",
+        "uuid",
+        "zoneinfo"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "ScheduleTool",
+          "line": 14,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__init__",
+          "line": 41,
+          "parent": "ScheduleTool",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "begin_request",
+          "line": 54,
+          "parent": "ScheduleTool",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "run",
+          "line": 59,
+          "parent": "ScheduleTool",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "_create_fields",
+          "line": 134,
+          "parent": "ScheduleTool",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "_validate_channel",
+          "line": 161,
+          "parent": "ScheduleTool",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "_required",
+          "line": 166,
+          "parent": "ScheduleTool",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "_error",
+          "line": 172,
+          "parent": "ScheduleTool",
+          "calls": []
+        }
+      ]
+    },
+    {
+      "path": "src/tools/shell.py",
+      "language": "python",
+      "imports": [
+        "__future__",
+        "os",
+        "pathlib",
+        "signal",
+        "subprocess",
+        "tempfile",
+        "typing"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "ShellTool",
+          "line": 11,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "run",
+          "line": 32,
+          "parent": "ShellTool",
+          "calls": []
+        }
+      ]
+    },
+    {
+      "path": "src/tools/web_search.py",
+      "language": "python",
+      "imports": [
+        "..common.logging_config",
+        "__future__",
+        "certifi",
+        "json",
+        "ssl",
+        "typing",
+        "urllib.request"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "WebSearchTool",
+          "line": 13,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__init__",
+          "line": 30,
+          "parent": "WebSearchTool",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "run",
+          "line": 34,
+          "parent": "WebSearchTool",
+          "calls": []
+        }
+      ]
+    },
+    {
+      "path": "tests/test_agent.py",
+      "language": "python",
+      "imports": [
+        "json",
+        "src.application.agent",
+        "src.common",
+        "src.domain",
+        "src.tools",
+        "threading",
+        "unittest"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "FakeSearchTool",
+          "line": 11,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__init__",
+          "line": 15,
+          "parent": "FakeSearchTool",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "run",
+          "line": 18,
+          "parent": "FakeSearchTool",
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "FakeModel",
+          "line": 23,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__init__",
+          "line": 24,
+          "parent": "FakeModel",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "chat",
+          "line": 27,
+          "parent": "FakeModel",
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "ParallelModel",
+          "line": 40,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__init__",
+          "line": 41,
+          "parent": "ParallelModel",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "chat",
+          "line": 44,
+          "parent": "ParallelModel",
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "BarrierSearchTool",
+          "line": 59,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__init__",
+          "line": 62,
+          "parent": "BarrierSearchTool",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "run",
+          "line": 66,
+          "parent": "BarrierSearchTool",
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "AgentTests",
+          "line": 71,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_automatically_executes_and_evaluates_tool_result",
+          "line": 72,
+          "parent": "AgentTests",
+          "calls": [
+            "FakeModel",
+            "FakeSearchTool"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "test_reports_tool_execution_events",
+          "line": 83,
+          "parent": "AgentTests",
+          "calls": [
+            "FakeModel",
+            "FakeSearchTool"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "test_reports_model_execution_events",
+          "line": 93,
+          "parent": "AgentTests",
+          "calls": [
+            "FakeModel",
+            "FakeSearchTool"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "test_executes_same_round_tool_calls_concurrently_and_preserves_order",
+          "line": 104,
+          "parent": "AgentTests",
+          "calls": [
+            "BarrierSearchTool",
+            "ParallelModel"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/test_cli.py",
+      "language": "python",
+      "imports": [
+        "io",
+        "pathlib",
+        "src.application.cli",
+        "src.common",
+        "src.domain.memory",
+        "unittest",
+        "unittest.mock"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "CliTests",
+          "line": 11,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_invalid_utf8_keeps_session_and_accepts_next_question",
+          "line": 12,
+          "parent": "CliTests",
+          "calls": []
+        }
+      ]
+    },
+    {
+      "path": "tests/test_layered_memory.py",
+      "language": "python",
+      "imports": [
+        "copy",
+        "dataclasses",
+        "io",
+        "json",
+        "multiprocessing",
+        "os",
+        "pathlib",
+        "src.application.agent",
+        "src.application.cli",
+        "src.application.context_builder",
+        "src.application.memory_manager",
+        "src.common",
+        "src.domain",
+        "src.domain.memory",
+        "src.domain.memory.fact",
+        "src.domain.memory.privacy",
+        "src.domain.memory.state",
+        "src.domain.memory.task",
+        "src.service.memory_extractor",
+        "src.service.memory_store",
+        "src.service.ollama",
+        "subprocess",
+        "sys",
+        "tempfile",
+        "unittest",
+        "unittest.mock"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "Extractor",
+          "line": 26,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__init__",
+          "line": 27,
+          "parent": "Extractor",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "extract_facts",
+          "line": 34,
+          "parent": "Extractor",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "propose_task_changes",
+          "line": 40,
+          "parent": "Extractor",
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "finish",
+          "line": 47,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "fact",
+          "line": 54,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "task",
+          "line": 60,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "function",
+          "name": "try_lock",
+          "line": 68,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "LayeredMemoryTests",
+          "line": 76,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_ten_turns_then_eleventh_running_and_compacted",
+          "line": 77,
+          "parent": "LayeredMemoryTests",
+          "calls": [
+            "Extractor",
+            "fact",
+            "finish"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "test_no_facts_still_archives_with_receipt",
+          "line": 101,
+          "parent": "LayeredMemoryTests",
+          "calls": [
+            "Extractor",
+            "finish"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "test_failed_extraction_preserves_history_and_retry",
+          "line": 109,
+          "parent": "LayeredMemoryTests",
+          "calls": [
+            "Extractor",
+            "fact",
+            "finish"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "test_fact_dedup_conflict_correction_and_scope",
+          "line": 122,
+          "parent": "LayeredMemoryTests",
+          "calls": [
+            "fact",
+            "finish"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "test_fake_sources_secret_role_and_unsupported_change_rejected",
+          "line": 136,
+          "parent": "LayeredMemoryTests",
+          "calls": [
+            "fact",
+            "finish"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "test_task_transitions_evidence_and_interleaved_question",
+          "line": 148,
+          "parent": "LayeredMemoryTests",
+          "calls": [
+            "Extractor",
+            "finish",
+            "task"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "test_reset_preserves_facts_tasks_but_blocks_continuation",
+          "line": 170,
+          "parent": "LayeredMemoryTests",
+          "calls": [
+            "fact",
+            "finish",
+            "task"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "test_forget_prevents_old_reextraction_allows_new",
+          "line": 180,
+          "parent": "LayeredMemoryTests",
+          "calls": [
+            "fact",
+            "finish"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "test_context_truncation_preserves_tool_pairs_and_current_input",
+          "line": 191,
+          "parent": "LayeredMemoryTests",
+          "calls": [
+            "finish"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "test_capacity_error_never_silently_truncates_user",
+          "line": 205,
+          "parent": "LayeredMemoryTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_interrupted_unmatched_tool_not_sent_for_reexecution",
+          "line": 211,
+          "parent": "LayeredMemoryTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_recovery_marks_execution_unknown_without_running_it",
+          "line": 221,
+          "parent": "LayeredMemoryTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_commit_failure_does_not_change_live_state",
+          "line": 235,
+          "parent": "LayeredMemoryTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_directory_sync_failure_poison_store",
+          "line": 245,
+          "parent": "LayeredMemoryTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_checkpoint_failure_means_tool_not_run",
+          "line": 256,
+          "parent": "LayeredMemoryTests",
+          "calls": [
+            "Model",
+            "Tool"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "Model",
+          "line": 257,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "chat",
+          "line": 258,
+          "parent": "Model",
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "Tool",
+          "line": 260,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "run",
+          "line": 263,
+          "parent": "Tool",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_result_save_failure_does_not_replay_tool",
+          "line": 272,
+          "parent": "LayeredMemoryTests",
+          "calls": [
+            "Model",
+            "Tool"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "Model",
+          "line": 273,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "chat",
+          "line": 274,
+          "parent": "Model",
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "Tool",
+          "line": 276,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "run",
+          "line": 279,
+          "parent": "Tool",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_single_writer_lock_between_processes",
+          "line": 289,
+          "parent": "LayeredMemoryTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_revision_conflict_unknown_version_and_archive_integrity",
+          "line": 301,
+          "parent": "LayeredMemoryTests",
+          "calls": [
+            "finish"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "test_migration_orphans_unfinished_and_no_reimport",
+          "line": 318,
+          "parent": "LayeredMemoryTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_archive_written_but_commit_failed_is_reused",
+          "line": 341,
+          "parent": "LayeredMemoryTests",
+          "calls": [
+            "Extractor",
+            "finish"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "commit",
+          "line": 347,
+          "parent": "test_archive_written_but_commit_failed_is_reused",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_redaction_and_default_debug_do_not_print_content",
+          "line": 360,
+          "parent": "LayeredMemoryTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_cli_clear_confirmation_and_memory_commands",
+          "line": 367,
+          "parent": "LayeredMemoryTests",
+          "calls": [
+            "fact",
+            "finish"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "test_extractor_isolated_tools_schema_and_invalid_output",
+          "line": 379,
+          "parent": "LayeredMemoryTests",
+          "calls": [
+            "Model"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "Model",
+          "line": 380,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "chat",
+          "line": 381,
+          "parent": "Model",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_fragmented_compaction_is_bounded_and_resumable",
+          "line": 392,
+          "parent": "LayeredMemoryTests",
+          "calls": [
+            "Extractor",
+            "finish"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "test_main_loop_limit_and_failures_are_terminal_turns",
+          "line": 406,
+          "parent": "LayeredMemoryTests",
+          "calls": [
+            "Loop",
+            "Model",
+            "Tool"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "Model",
+          "line": 407,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "chat",
+          "line": 408,
+          "parent": "Model",
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "Loop",
+          "line": 414,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "chat",
+          "line": 415,
+          "parent": "Loop",
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "Tool",
+          "line": 417,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "run",
+          "line": 419,
+          "parent": "Tool",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_keyboard_interrupt_persisted",
+          "line": 426,
+          "parent": "LayeredMemoryTests",
+          "calls": [
+            "Model"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "Model",
+          "line": 427,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "chat",
+          "line": 428,
+          "parent": "Model",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_pending_purge_blocks_new_turn_and_restart_retries",
+          "line": 434,
+          "parent": "LayeredMemoryTests",
+          "calls": [
+            "finish"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "test_redacted_storage_keeps_live_user_input",
+          "line": 449,
+          "parent": "LayeredMemoryTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_task_failure_is_visible_and_retried",
+          "line": 458,
+          "parent": "LayeredMemoryTests",
+          "calls": [
+            "Extractor",
+            "finish",
+            "task"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "test_task_projection_fits_large_output_without_losing_source_ids",
+          "line": 471,
+          "parent": "LayeredMemoryTests",
+          "calls": [
+            "finish"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "test_fake_file_completion_rejected_without_tool",
+          "line": 479,
+          "parent": "LayeredMemoryTests",
+          "calls": [
+            "finish",
+            "task"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "test_path_traversal_and_symlinks_rejected",
+          "line": 487,
+          "parent": "LayeredMemoryTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_expired_facts_and_disputed_status_in_context",
+          "line": 496,
+          "parent": "LayeredMemoryTests",
+          "calls": [
+            "fact",
+            "finish"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "test_complete_current_exchange_compacted_as_data_when_budget_tight",
+          "line": 508,
+          "parent": "LayeredMemoryTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_correction_can_resolve_conflict_by_restating_old_value",
+          "line": 520,
+          "parent": "LayeredMemoryTests",
+          "calls": [
+            "fact",
+            "finish"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "test_plan_source_cannot_be_rephrased_as_current_fact",
+          "line": 530,
+          "parent": "LayeredMemoryTests",
+          "calls": [
+            "fact",
+            "finish"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "test_configuration_resolves_relative_paths_and_validates",
+          "line": 537,
+          "parent": "LayeredMemoryTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_cli_subprocess_start_reset_and_reload",
+          "line": 547,
+          "parent": "LayeredMemoryTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_gateway_uses_maintenance_timeout_json_mode_and_no_tools",
+          "line": 562,
+          "parent": "LayeredMemoryTests",
+          "calls": [
+            "Response"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "Response",
+          "line": 564,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__enter__",
+          "line": 565,
+          "parent": "Response",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__exit__",
+          "line": 566,
+          "parent": "Response",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "read",
+          "line": 567,
+          "parent": "Response",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_completed_answer_survives_maintenance_storage_error",
+          "line": 576,
+          "parent": "LayeredMemoryTests",
+          "calls": [
+            "Model"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "Model",
+          "line": 578,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "chat",
+          "line": 579,
+          "parent": "Model",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_archive_orphans_are_diagnostic_only",
+          "line": 588,
+          "parent": "LayeredMemoryTests",
+          "calls": [
+            "finish"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "test_nonterminal_task_states_and_scope_validation",
+          "line": 597,
+          "parent": "LayeredMemoryTests",
+          "calls": [
+            "fact",
+            "finish",
+            "task"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "test_migration_large_history_and_missing_tool_result",
+          "line": 615,
+          "parent": "LayeredMemoryTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_empty_proposal_for_explicit_waiting_task_is_not_silent_success",
+          "line": 630,
+          "parent": "LayeredMemoryTests",
+          "calls": [
+            "Extractor",
+            "finish"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/test_memory.py",
+      "language": "python",
+      "imports": [
+        "json",
+        "pathlib",
+        "src.application.agent",
+        "src.application.memory_manager",
+        "src.domain.memory",
+        "src.service.memory_store",
+        "tempfile",
+        "unittest"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "MemoryTests",
+          "line": 12,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_restart_restores_all_messages_with_current_system_prompt",
+          "line": 13,
+          "parent": "MemoryTests",
+          "calls": [
+            "Model"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "Model",
+          "line": 14,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "chat",
+          "line": 15,
+          "parent": "Model",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_agent_persists_and_reset_survives_restart",
+          "line": 27,
+          "parent": "MemoryTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_corrupt_history_is_not_overwritten",
+          "line": 38,
+          "parent": "MemoryTests",
+          "calls": []
+        }
+      ]
+    },
+    {
+      "path": "tests/test_notifications.py",
+      "language": "python",
+      "imports": [
+        "contextlib",
+        "io",
+        "json",
+        "src.service.notifications",
+        "unittest",
+        "unittest.mock"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "NotificationDispatcherTests",
+          "line": 10,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_console_channel_outputs_readable_message",
+          "line": 11,
+          "parent": "NotificationDispatcherTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_available_channels_only_includes_configured_routes",
+          "line": 19,
+          "parent": "NotificationDispatcherTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_email_uses_fixed_addresses_and_starttls",
+          "line": 29,
+          "parent": "NotificationDispatcherTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_email_ssl_uses_ssl_transport",
+          "line": 52,
+          "parent": "NotificationDispatcherTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_webhook_posts_json_with_bearer_and_idempotency_headers",
+          "line": 62,
+          "parent": "NotificationDispatcherTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_unconfigured_or_unknown_channels_are_rejected",
+          "line": 84,
+          "parent": "NotificationDispatcherTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_bad_configuration_and_header_injection_are_rejected",
+          "line": 91,
+          "parent": "NotificationDispatcherTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_plain_smtp_does_not_login_and_invalid_timeout_rejected",
+          "line": 109,
+          "parent": "NotificationDispatcherTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_transport_errors_are_sanitized",
+          "line": 123,
+          "parent": "NotificationDispatcherTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_smtp_errors_are_sanitized",
+          "line": 134,
+          "parent": "NotificationDispatcherTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_non_success_webhook_status_fails_and_response_is_bounded",
+          "line": 145,
+          "parent": "NotificationDispatcherTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_redirects_are_not_followed",
+          "line": 158,
+          "parent": "NotificationDispatcherTests",
+          "calls": []
+        }
+      ]
+    },
+    {
+      "path": "tests/test_schedule_cli.py",
+      "language": "python",
+      "imports": [
+        "dataclasses",
+        "io",
+        "pathlib",
+        "src.application.cli",
+        "src.common.config",
+        "src.service.notifications",
+        "src.service.schedule_store",
+        "src.tools.schedule",
+        "tempfile",
+        "unittest",
+        "unittest.mock"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "SettingsScheduleTests",
+          "line": 14,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_scheduler_environment_defaults_and_db_path",
+          "line": 15,
+          "parent": "SettingsScheduleTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_scheduler_settings_validate_timezone_interval_grace_and_boolean",
+          "line": 24,
+          "parent": "SettingsScheduleTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_scheduler_zero_grace_period_is_valid",
+          "line": 31,
+          "parent": "SettingsScheduleTests",
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "ScheduleCliTests",
+          "line": 36,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_schedule_commands_disabled_and_enabled",
+          "line": 37,
+          "parent": "ScheduleCliTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_enabled_cli_starts_scheduler_registers_tool_commands_and_stops",
+          "line": 52,
+          "parent": "ScheduleCliTests",
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "FakeScheduler",
+          "line": 58,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__init__",
+          "line": 59,
+          "parent": "FakeScheduler",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "start",
+          "line": 62,
+          "parent": "FakeScheduler",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "stop",
+          "line": 64,
+          "parent": "FakeScheduler",
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "FakeAgent",
+          "line": 67,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__init__",
+          "line": 68,
+          "parent": "FakeAgent",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "ask",
+          "line": 70,
+          "parent": "FakeAgent",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_background_agent_has_only_web_search_and_fresh_memory",
+          "line": 91,
+          "parent": "ScheduleCliTests",
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "FakeScheduler",
+          "line": 96,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__init__",
+          "line": 97,
+          "parent": "FakeScheduler",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "start",
+          "line": 100,
+          "parent": "FakeScheduler",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "stop",
+          "line": 101,
+          "parent": "FakeScheduler",
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "FakeAgent",
+          "line": 104,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__init__",
+          "line": 105,
+          "parent": "FakeAgent",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "ask",
+          "line": 107,
+          "parent": "FakeAgent",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_scheduler_start_failure_still_runs_registered_cleanup",
+          "line": 129,
+          "parent": "ScheduleCliTests",
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "FailingScheduler",
+          "line": 135,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__init__",
+          "line": 136,
+          "parent": "FailingScheduler",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "start",
+          "line": 137,
+          "parent": "FailingScheduler",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "stop",
+          "line": 139,
+          "parent": "FailingScheduler",
+          "calls": []
+        }
+      ]
+    },
+    {
+      "path": "tests/test_schedule_store.py",
+      "language": "python",
+      "imports": [
+        "datetime",
+        "pathlib",
+        "sqlite3",
+        "src.domain.schedule",
+        "src.service.schedule_store",
+        "tempfile",
+        "threading",
+        "unittest",
+        "unittest.mock"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "ScheduleTimeTests",
+          "line": 12,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_naive_local_and_offset_inputs",
+          "line": 13,
+          "parent": "ScheduleTimeTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_dst_ambiguous_requires_offset_and_nonexistent_rejected",
+          "line": 17,
+          "parent": "ScheduleTimeTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_daily_wall_time_skips_dst_gap",
+          "line": 24,
+          "parent": "ScheduleTimeTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_weekly_multiple_days_stays_anchored_to_initial_wall_time",
+          "line": 28,
+          "parent": "ScheduleTimeTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_weekly_initial_date_must_match_selected_days",
+          "line": 32,
+          "parent": "ScheduleTimeTests",
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "ScheduleStoreTests",
+          "line": 37,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "setUp",
+          "line": 38,
+          "parent": "ScheduleStoreTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "tearDown",
+          "line": 43,
+          "parent": "ScheduleStoreTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "create",
+          "line": 46,
+          "parent": "ScheduleStoreTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_restart_claim_snapshot_and_idempotency",
+          "line": 51,
+          "parent": "ScheduleStoreTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_missed_occurrence_advances_repeat",
+          "line": 63,
+          "parent": "ScheduleStoreTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_pause_and_cancel_stop_pending_notification",
+          "line": 71,
+          "parent": "ScheduleStoreTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_retry_persists_attempt_and_pause_cancel_suppress_it",
+          "line": 81,
+          "parent": "ScheduleStoreTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_corrupt_database_is_not_deleted",
+          "line": 94,
+          "parent": "ScheduleStoreTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_malformed_schema_is_not_recreated_or_erased",
+          "line": 101,
+          "parent": "ScheduleStoreTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_update_content_preserves_next_occurrence_and_timezone_change_preserves_instant",
+          "line": 112,
+          "parent": "ScheduleStoreTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_timezone_update_recalculates_weekly_occurrence_from_local_wall_time",
+          "line": 123,
+          "parent": "ScheduleStoreTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_timezone_update_keeps_future_once_instant",
+          "line": 134,
+          "parent": "ScheduleStoreTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_once_completed_run_can_be_cancelled_and_not_retried",
+          "line": 141,
+          "parent": "ScheduleStoreTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_kind_is_limited_to_supported_values",
+          "line": 149,
+          "parent": "ScheduleStoreTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_create_rejects_weekly_schedule_whose_start_day_is_not_selected",
+          "line": 153,
+          "parent": "ScheduleStoreTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_update_rejects_weekly_rule_that_excludes_initial_date",
+          "line": 158,
+          "parent": "ScheduleStoreTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_concurrent_partial_updates_do_not_revert_each_other",
+          "line": 164,
+          "parent": "ScheduleStoreTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "delayed_get",
+          "line": 170,
+          "parent": "test_concurrent_partial_updates_do_not_revert_each_other",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "update_grace",
+          "line": 181,
+          "parent": "test_concurrent_partial_updates_do_not_revert_each_other",
+          "calls": []
+        }
+      ]
+    },
+    {
+      "path": "tests/test_schedule_tool.py",
+      "language": "python",
+      "imports": [
+        "datetime",
+        "pathlib",
+        "src.application.agent",
+        "src.service.notifications",
+        "src.service.schedule_store",
+        "src.tools.schedule",
+        "tempfile",
+        "threading",
+        "unittest",
+        "unittest.mock"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "ScheduleToolTests",
+          "line": 14,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "setUp",
+          "line": 15,
+          "parent": "ScheduleToolTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "tearDown",
+          "line": 22,
+          "parent": "ScheduleToolTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "create_args",
+          "line": 25,
+          "parent": "ScheduleToolTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_now_reports_configured_zone_and_channels",
+          "line": 31,
+          "parent": "ScheduleToolTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_create_returns_durable_receipt_with_local_and_utc_time",
+          "line": 36,
+          "parent": "ScheduleToolTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_invalid_past_time_and_unconfigured_channel_do_not_create",
+          "line": 44,
+          "parent": "ScheduleToolTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_invalid_unknown_and_unexpected_arguments_are_rejected_by_signature",
+          "line": 55,
+          "parent": "ScheduleToolTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_duplicate_calls_same_turn_share_task_and_new_turn_does_not",
+          "line": 61,
+          "parent": "ScheduleToolTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_parallel_duplicate_create_is_idempotent",
+          "line": 72,
+          "parent": "ScheduleToolTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "create",
+          "line": 76,
+          "parent": "test_parallel_duplicate_create_is_idempotent",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_duplicate_weekly_payload_normalizes_weekday_order_and_equivalent_local_time",
+          "line": 88,
+          "parent": "ScheduleToolTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_update_list_get_history_cancel",
+          "line": 97,
+          "parent": "ScheduleToolTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_update_local_time_keeps_named_timezone",
+          "line": 108,
+          "parent": "ScheduleToolTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_update_checks_existing_channel_configuration",
+          "line": 115,
+          "parent": "ScheduleToolTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_fatal_scheduler_refuses_create_and_update",
+          "line": 124,
+          "parent": "ScheduleToolTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_agent_natural_language_tool_call_gets_receipt",
+          "line": 131,
+          "parent": "ScheduleToolTests",
+          "calls": [
+            "FakeModel"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "FakeModel",
+          "line": 132,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__init__",
+          "line": 133,
+          "parent": "FakeModel",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "chat",
+          "line": 135,
+          "parent": "FakeModel",
+          "calls": []
+        }
+      ]
+    },
+    {
+      "path": "tests/test_scheduler.py",
+      "language": "python",
+      "imports": [
+        "datetime",
+        "pathlib",
+        "src.application.scheduler",
+        "src.service.schedule_store",
+        "tempfile",
+        "threading",
+        "time",
+        "unittest"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "FakeDispatcher",
+          "line": 12,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__init__",
+          "line": 13,
+          "parent": "FakeDispatcher",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "send",
+          "line": 18,
+          "parent": "FakeDispatcher",
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "SchedulerTests",
+          "line": 26,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "setUp",
+          "line": 27,
+          "parent": "SchedulerTests",
+          "calls": [
+            "FakeDispatcher"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "tearDown",
+          "line": 36,
+          "parent": "SchedulerTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "execute",
+          "line": 40,
+          "parent": "SchedulerTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "create",
+          "line": 44,
+          "parent": "SchedulerTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_idle_input_independent_timer_and_due_reminder_without_agent",
+          "line": 48,
+          "parent": "SchedulerTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_agent_runs_once_despite_notification_failures_and_retries_are_bounded",
+          "line": 62,
+          "parent": "SchedulerTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_missed_run_does_not_execute_or_notify",
+          "line": 78,
+          "parent": "SchedulerTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_agent_error_marks_failed_without_retry",
+          "line": 85,
+          "parent": "SchedulerTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_start_recovery_marks_executing_unknown_and_does_not_replay",
+          "line": 94,
+          "parent": "SchedulerTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_saved_notification_resumes_after_restart_without_agent_reexecution",
+          "line": 102,
+          "parent": "SchedulerTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_second_worker_fails_to_start_while_first_owns_lock",
+          "line": 113,
+          "parent": "SchedulerTests",
+          "calls": [
+            "FakeDispatcher"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "test_stop_joins_worker_and_releases_lock_for_next_worker",
+          "line": 123,
+          "parent": "SchedulerTests",
+          "calls": [
+            "FakeDispatcher"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "test_stop_keeps_lock_while_manual_tick_executor_is_in_flight",
+          "line": 132,
+          "parent": "SchedulerTests",
+          "calls": [
+            "FakeDispatcher"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "blocked_executor",
+          "line": 136,
+          "parent": "test_stop_keeps_lock_while_manual_tick_executor_is_in_flight",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_pause_or_cancel_after_execution_suppresses_send",
+          "line": 160,
+          "parent": "SchedulerTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "execute_and_change_state",
+          "line": 164,
+          "parent": "test_pause_or_cancel_after_execution_suppresses_send",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_pause_cancel_during_send_reconciles_success_and_failure",
+          "line": 173,
+          "parent": "SchedulerTests",
+          "calls": [
+            "FakeDispatcher"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "in_send",
+          "line": 180,
+          "parent": "test_pause_cancel_during_send_reconciles_success_and_failure",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_stop_overlapping_recovery_prevents_late_worker_start",
+          "line": 209,
+          "parent": "SchedulerTests",
+          "calls": [
+            "FakeDispatcher"
+          ]
+        },
+        {
+          "kind": "method",
+          "name": "blocked_recovery",
+          "line": 213,
+          "parent": "test_stop_overlapping_recovery_prevents_late_worker_start",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_simultaneous_start_calls_create_only_one_worker",
+          "line": 236,
+          "parent": "SchedulerTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "blocked_recovery",
+          "line": 241,
+          "parent": "test_simultaneous_start_calls_create_only_one_worker",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_pause_between_claim_and_execution_skips_agent",
+          "line": 261,
+          "parent": "SchedulerTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "claim_then_pause",
+          "line": 264,
+          "parent": "test_pause_between_claim_and_execution_skips_agent",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_storage_failure_exposes_fatal_error_and_stops_more_side_effects",
+          "line": 274,
+          "parent": "SchedulerTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_concurrent_tick_calls_are_serialized",
+          "line": 286,
+          "parent": "SchedulerTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "run_tick",
+          "line": 290,
+          "parent": "test_concurrent_tick_calls_are_serialized",
+          "calls": []
+        }
+      ]
+    },
+    {
+      "path": "tests/test_shell.py",
+      "language": "python",
+      "imports": [
+        "src.application.agent",
+        "src.tools",
+        "tempfile",
+        "unittest"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "ShellTests",
+          "line": 8,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_output_exit_code_and_working_directory",
+          "line": 9,
+          "parent": "ShellTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_timeout",
+          "line": 17,
+          "parent": "ShellTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_invalid_arguments",
+          "line": 22,
+          "parent": "ShellTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_output_is_truncated",
+          "line": 27,
+          "parent": "ShellTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_agent_dispatches_command_arguments_and_returns_result_to_model",
+          "line": 34,
+          "parent": "ShellTests",
+          "calls": [
+            "Model"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "Model",
+          "line": 35,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "chat",
+          "line": 38,
+          "parent": "Model",
+          "calls": []
+        }
+      ]
+    },
+    {
+      "path": "tests/test_web_search.py",
+      "language": "python",
+      "imports": [
+        "json",
+        "src.tools.web_search",
+        "unittest",
+        "unittest.mock"
+      ],
+      "exports": [],
+      "routes": [],
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "_Response",
+          "line": 8,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__enter__",
+          "line": 9,
+          "parent": "_Response",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "__exit__",
+          "line": 12,
+          "parent": "_Response",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "read",
+          "line": 15,
+          "parent": "_Response",
+          "calls": []
+        },
+        {
+          "kind": "class",
+          "name": "WebSearchToolTests",
+          "line": 21,
+          "parent": null,
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_requires_api_key",
+          "line": 22,
+          "parent": "WebSearchToolTests",
+          "calls": []
+        },
+        {
+          "kind": "method",
+          "name": "test_maps_tavily_results",
+          "line": 27,
+          "parent": "WebSearchToolTests",
+          "calls": [
+            "_Response"
+          ]
+        }
+      ]
+    }
+  ]
+}

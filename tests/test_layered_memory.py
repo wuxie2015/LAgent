@@ -548,7 +548,7 @@ class LayeredMemoryTests(unittest.TestCase):
         import subprocess
         import sys
         with tempfile.TemporaryDirectory() as directory:
-            env = dict(os.environ, MEMORY_DIR=directory, MEMORY_DEBUG_CONTENT="false", MEMORY_ENABLED="true")
+            env = dict(os.environ, MEMORY_DIR=directory, MEMORY_DEBUG_CONTENT="false", MEMORY_ENABLED="true", SCHEDULER_ENABLED="false")
             result = subprocess.run([sys.executable, "-m", "src"], input="/memory\n/reset\n/exit\n", text=True, capture_output=True, env=env, timeout=10)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("recent_turns", result.stdout)
