@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from ..domain.delegation import SubagentPolicy
 from ..domain.memory import MemoryPolicy
 
 
@@ -54,6 +55,8 @@ class Settings:
     notification_webhook_url: str = ""
     notification_webhook_token: str = ""
     notification_timeout: float = 15.0
+    subagent_enabled: bool = True
+    subagent_policy: SubagentPolicy = field(default_factory=SubagentPolicy)
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -65,6 +68,16 @@ class Settings:
             tavily_api_key=os.getenv("TAVILY_API_KEY") or None,
             search_result_limit=int(os.getenv("SEARCH_RESULT_LIMIT", "5")),
             log_level=os.getenv("LOG_LEVEL", "INFO"),
+            subagent_enabled=_boolean("SUBAGENT_ENABLED", True),
+            subagent_policy=SubagentPolicy(
+                max_tasks=_bounded_int("SUBAGENT_MAX_TASKS", 2, 1, 8),
+                max_rounds=_bounded_int("SUBAGENT_MAX_ROUNDS", 5, 1, 6),
+                max_calls=_bounded_int("AGENT_MAX_MODEL_CALLS", 18, 2, 100),
+                timeout=_bounded_float("SUBAGENT_TIMEOUT", 120, 0.01, 600),
+                input_chars=_bounded_int("SUBAGENT_INPUT_CHARS", 24000, 1000, 100000),
+                context_chars=_bounded_int("SUBAGENT_CONTEXT_CHARS", 48000, 1000, 200000),
+                result_chars=_bounded_int("SUBAGENT_RESULT_CHARS", 3000, 1000, 4000),
+            ),
             memory_enabled=_boolean("MEMORY_ENABLED", True),
             memory_dir=_memory_directory(),
             memory_model=os.getenv("MEMORY_MODEL", ""),

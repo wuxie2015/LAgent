@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable
 
 from ..common.logging_config import get_logger
 from ..domain import AgentTool, ModelExecutionEvent, ModelGateway, ToolExecutionEvent
+from ..domain.delegation import RequestBudget, SubagentPolicy
 from ..domain.memory import MemoryError
 from ..domain.memory.state import StorageError
 from .memory_manager import MemoryManager
@@ -34,6 +36,7 @@ class Agent:
         on_tool_event: Callable[[ToolExecutionEvent], None] | None = None,
         on_model_event: Callable[[ModelExecutionEvent], None] | None = None,
         memory: MemoryManager | None = None,
+        execution_policy: SubagentPolicy | None = None,
     ) -> None:
         self.client = client
         self.tools = {tool.name: tool for tool in tools}
@@ -41,6 +44,9 @@ class Agent:
         self.on_tool_event = on_tool_event
         self.on_model_event = on_model_event
         self.memory = memory if memory is not None else MemoryManager(system_prompt)
+        delegated = self.tools.get("delegate_task")
+        self.execution_policy = execution_policy or (delegated.runner.policy if delegated else SubagentPolicy())
+        self.last_run_metrics = {}
 
     @property
     def messages(self) -> list[dict[str, Any]]:
@@ -52,12 +58,28 @@ class Agent:
     def ask(self, text: str) -> str:
         logger = get_logger()
         self.memory.begin_turn(text)
+        budget = RequestBudget(self.execution_policy)
+        delegate = self.tools.get("delegate_task")
+        if delegate is not None:
+            delegate.begin_request(budget)
         try:
             for round_number in range(1, self.max_tool_rounds + 1):
-                definitions = [tool.definition for tool in self.tools.values()]
+                final_only = budget.remaining == 1
+                definitions = [] if final_only else [tool.definition for tool in self.tools.values()]
                 messages = self.memory.build_context(definitions)
+                if final_only:
+                    messages = messages + [{"role": "system", "content": "共享调用预算只剩本次。请根据现有证据给出最终回答并说明未完成事项，不再调用工具。"}]
+                budget.consume_parent()
                 self._emit_model_event("requested", round_number, messages)
+                started = time.monotonic()
                 response = self.client.chat(messages, definitions)
+                metric = {"agent": "parent", "round": round_number,
+                          "context_chars": len(json.dumps(messages, ensure_ascii=False)) + len(json.dumps(definitions, ensure_ascii=False)),
+                          "elapsed_seconds": round(time.monotonic() - started, 6)}
+                for key in ("prompt_eval_count", "eval_count"):
+                    if type(response.get(key)) is int:
+                        metric[key] = response[key]
+                budget.metrics.append(metric)
                 self._emit_model_event("completed", round_number, messages, response)
                 message = response.get("message")
                 if not isinstance(message, dict) or message.get("role") != "assistant":
@@ -72,12 +94,19 @@ class Agent:
                     except StorageError as exc:
                         raise CompletedTurnStorageError(answer) from exc
                     return answer
+                if final_only:
+                    raise AgentStateError("模型在最终预算调用中仍请求工具，已阻止执行")
                 tool_calls = [self._parse_tool_call(call) for call in calls]
                 execution_ids = self.memory.record_tool_starts(tool_calls, message_id)
                 for tool_name, arguments in tool_calls:
                     self._emit_tool_event("started", round_number, tool_name, arguments)
-                with ThreadPoolExecutor(max_workers=len(tool_calls)) as executor:
-                    results = list(executor.map(lambda item: self._execute_tool(*item), tool_calls))
+                # Delegate synchronously, without forking or spawning from an executor thread.
+                # Mixed batches are serialized to avoid reading while main tools write.
+                if any(name == "delegate_task" for name, _ in tool_calls):
+                    results = [self._execute_tool(*item) for item in tool_calls]
+                else:
+                    with ThreadPoolExecutor(max_workers=len(tool_calls)) as executor:
+                        results = list(executor.map(lambda item: self._execute_tool(*item), tool_calls))
                 for execution_id, (tool_name, arguments), result in zip(execution_ids, tool_calls, results):
                     try:
                         self.memory.record_tool_result(execution_id, tool_name, arguments, result)
@@ -99,6 +128,9 @@ class Agent:
             self.memory.finish_turn("failed", type(exc).__name__)
             logger.warning("agent_turn_failed error_type=%s", type(exc).__name__)
             raise
+        finally:
+            self.last_run_metrics = budget.snapshot()
+            logger.info("agent_request_metrics %s", json.dumps(self.last_run_metrics, ensure_ascii=False))
 
     def _parse_tool_call(self, call: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         function = call.get("function", {})

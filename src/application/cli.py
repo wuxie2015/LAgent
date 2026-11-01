@@ -3,9 +3,12 @@ from __future__ import annotations
 from contextlib import ExitStack
 import json
 import sqlite3
+from pathlib import Path
 
 from .agent import Agent, AgentStateError, CompletedTurnStorageError
 from .memory_manager import MemoryManager
+from .subagent import SubagentRunner
+from ..tools.delegate_task import DelegateTaskTool
 from ..common import Settings, configure_logging, load_system_prompt
 from ..domain import ModelExecutionEvent, ToolExecutionEvent
 from ..domain.memory import MemoryError
@@ -41,6 +44,10 @@ def _show_tool_event(event: ToolExecutionEvent, debug: bool = False) -> None:
         if "error" in result:
             status["error"] = "工具执行失败，详情已提供给模型"
         print(f"[工具返回] {event.tool_name} {json.dumps(status, ensure_ascii=False)}")
+
+
+def _show_subagent_event(event):
+    print(f"[子 Agent · {event.parent_id} / {event.task_id}] {event.phase}: {event.status}")
 
 
 def memory_command(text: str, memory: MemoryManager) -> bool:
@@ -172,9 +179,15 @@ def main() -> None:
                     writes_available=lambda: scheduler.fatal_error is None,
                 )
                 tools.append(schedule_tool)
+            if settings.subagent_enabled:
+                tools.append(DelegateTaskTool(SubagentRunner(
+                    OllamaClient(settings.ollama_host, settings.model),
+                    Path(__file__).resolve().parents[2],
+                    WebSearchTool(settings.tavily_api_key, settings.search_result_limit),
+                    settings.subagent_policy, _show_subagent_event, blocked_paths=(settings.memory_dir,))))
             agent = Agent(client=OllamaClient(settings.ollama_host, settings.model),
                 tools=tools,
-                system_prompt=system_prompt, memory=memory,
+                system_prompt=system_prompt, memory=memory, execution_policy=settings.subagent_policy,
                 on_tool_event=lambda e: _show_tool_event(e, settings.memory_debug_content),
                 on_model_event=lambda e: _show_model_event(e, settings.memory_debug_content))
             print(f"Lin Agent 已启动（模型：{settings.model}）。输入 /help 查看命令。")

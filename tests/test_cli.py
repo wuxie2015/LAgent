@@ -18,6 +18,7 @@ class CliTests(unittest.TestCase):
             patch("src.application.cli.load_system_prompt", return_value="system"),
             patch("src.application.cli.OllamaClient"),
             patch("src.application.cli.WebSearchTool"),
+            patch("src.application.cli.SubagentRunner"),
             patch("src.application.cli.Agent") as agent_class,
             patch("builtins.input", side_effect=[error, question, "/exit"]),
             patch("sys.stdout", new_callable=io.StringIO) as output,
