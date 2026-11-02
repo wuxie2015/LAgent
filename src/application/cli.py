@@ -13,7 +13,6 @@ from ..common import Settings, configure_logging, load_system_prompt
 from ..domain import ModelExecutionEvent, ToolExecutionEvent
 from ..domain.memory import MemoryError
 from ..domain.memory.state import StorageError
-from ..domain.memory.privacy import redact
 from ..service import OllamaClient, OllamaError
 from ..service.memory_store import JsonMemoryStore
 from ..service.memory_extractor import ModelMemoryExtractor
@@ -25,16 +24,11 @@ from ..service.schedule_store import ScheduleStore
 
 
 def _show_model_event(event: ModelExecutionEvent, debug: bool = False) -> None:
-    if debug:
-        print(json.dumps(redact(event.messages if event.phase == "requested" else event.response), ensure_ascii=False, indent=2))
-    else:
-        print(f"[模型 · 第 {event.round_number} 轮] {'请求' if event.phase == 'requested' else '返回'}")
+    print(f"[模型 · 第 {event.round_number} 轮] {'请求' if event.phase == 'requested' else '返回'}")
 
 
 def _show_tool_event(event: ToolExecutionEvent, debug: bool = False) -> None:
-    if debug:
-        print(json.dumps(redact({"tool": event.tool_name, "arguments": event.arguments, "result": event.result}), ensure_ascii=False, indent=2))
-    elif event.phase == "started":
+    if event.phase == "started":
         print(f"[工具调用 · 第 {event.round_number} 轮] {event.tool_name}")
     else:
         result = event.result or {}
@@ -191,8 +185,6 @@ def main() -> None:
                 on_tool_event=lambda e: _show_tool_event(e, settings.memory_debug_content),
                 on_model_event=lambda e: _show_model_event(e, settings.memory_debug_content))
             print(f"Lin Agent 已启动（模型：{settings.model}）。输入 /help 查看命令。")
-            if settings.memory_debug_content:
-                print("[调试] 将显示经过尽力脱敏的完整内容，仍可能包含私人信息。")
             logger.info("agent_started model=%s", settings.model)
             while True:
                 for notice in memory.notices:
