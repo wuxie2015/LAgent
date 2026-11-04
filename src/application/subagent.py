@@ -13,6 +13,9 @@ from ..domain.delegation import SubagentPolicy, SubtaskRequest, SubtaskResult
 from ..domain.memory.privacy import redact
 from ..tools.read_only import ProjectFilesTool
 from ..tools.web_search import WebSearchTool
+from ..tools.web_fetch import WebFetchTool
+from .tool_execution import ToolExecutor
+from .context_builder import final_evidence_messages
 
 
 def encoded(value):
@@ -61,17 +64,24 @@ def _worker(client, tools, prompt, request, rounds, context_chars, record, outpu
     definitions = [t.definition for t in tools]
     registered = {t.name: t for t in tools}
     calls, metrics = 0, []
+    executor = ToolExecutor(registered)
+    forced_final = False
     result = failure('model_step_limit', 'partial')
     try:
         for number in range(1, rounds + 1):
-            chars = len(encoded(messages)) + len(encoded(definitions))
+            final_only = forced_final or number == rounds
+            active_definitions = [] if final_only else definitions
+            if final_only:
+                messages = final_evidence_messages(messages)
+                messages.append({'role': 'user', 'content': '[应用执行控制] 工具已关闭，请现在根据已有证据返回最终JSON；缺少证据用partial并列出unresolved，不再请求工具。'})
+            chars = len(encoded(messages)) + len(encoded(active_definitions))
             if chars > context_chars:
                 result = failure('context_limit；完整已执行过程保留在details_ref中', 'partial')
                 break
             journal(record, {'event': 'model_requested', 'round': number, 'messages': messages})
             calls += 1
             started = time.monotonic()
-            response = client.chat(messages, definitions)
+            response = client.chat(messages, active_definitions)
             metric = {'agent': 'child', 'round': number, 'context_chars': chars,
                       'elapsed_seconds': round(time.monotonic() - started, 6)}
             for key in ('prompt_eval_count', 'eval_count'):
@@ -87,24 +97,33 @@ def _worker(client, tools, prompt, request, rounds, context_chars, record, outpu
             if not tool_calls:
                 result = validate_result(message.get('content', ''))
                 break
+            if final_only:
+                result = failure('model_step_limit；最终阶段额外工具请求已阻止', 'partial')
+                break
             if not isinstance(tool_calls, list) or len(tool_calls) > 8:
                 raise ValueError('单轮工具调用上限8次')
+            malformed_arguments = False
             for call in tool_calls:
                 function = call['function']
                 name = function['name']
                 if name not in registered:
                     raise ValueError('禁止的子任务工具：' + str(name))
                 arguments = function.get('arguments', {})
-                if isinstance(arguments, str):
-                    arguments = json.loads(arguments)
-                if not isinstance(arguments, dict):
-                    raise ValueError('无效工具参数')
+                value = executor.execute(name, arguments)
                 try:
-                    value = registered[name].run(**arguments)
-                except Exception as exc:
-                    value = {'error': type(exc).__name__}
+                    wire_arguments = json.loads(arguments) if isinstance(arguments, str) else arguments
+                    if not isinstance(wire_arguments, dict):
+                        malformed_arguments = True
+                    else:
+                        function['arguments'] = wire_arguments
+                except ValueError:
+                    malformed_arguments = True
+                if value.get('error_code') == 'repeat_limit':
+                    forced_final = True
                 journal(record, {'event': 'tool_completed', 'tool': name, 'arguments': arguments, 'result': value})
-                messages.append({'role': 'tool', 'content': encoded({'tool': name, 'result': value})})
+                messages.append({'role': 'tool', 'content': encoded({'tool': name, 'arguments': arguments, 'result': value})})
+            if malformed_arguments:
+                messages = final_evidence_messages(messages)
     except Exception as exc:
         # Keep raw exception data out of the main conversation and record.
         result = failure('invalid_result_or_execution_error:' + type(exc).__name__, 'partial' if calls else 'failed')
@@ -126,8 +145,8 @@ class SubagentRunner:
         self.policy = policy or SubagentPolicy()
         # Explicit capability whitelist: callers cannot supply arbitrary executable tools.
         if search is not None and not isinstance(search, WebSearchTool):
-            raise ValueError('子 Agent 只允许受限文件工具和网页搜索')
-        self.tools = [ProjectFilesTool(self.root, blocked_paths)] + ([search] if search is not None else [])
+            raise ValueError('子 Agent 只允许受限文件工具和公开网页工具')
+        self.tools = [ProjectFilesTool(self.root, blocked_paths)] + ([search, WebFetchTool()] if search is not None else [])
         self.on_event = on_event
         self.budget = None
         self.records = self.root / 'data' / 'subagents'

@@ -240,14 +240,12 @@ class SubagentTests(unittest.TestCase):
         self.assertFalse((self.root / 'data').exists())
 
     def test_final_call_cannot_execute_more_tools(self):
-        from src.application.agent import AgentStateError
         policy = SubagentPolicy(max_calls=2)
         runner = self.runner(SequenceModel([]), policy)
         model = SequenceModel([call('delegate_task', {'goal': '任务', 'context': '', 'expected_output': '证据'}),
                                call('delegate_task', {'goal': '任务', 'context': '', 'expected_output': '证据'})])
         agent = Agent(model, [DelegateTaskTool(runner)], '规则')
-        with self.assertRaises(AgentStateError):
-            agent.ask('执行')
+        self.assertIn('未完成', agent.ask('执行'))
         self.assertEqual(agent.last_run_metrics['subtasks'], 0)
         self.assertFalse((self.root / 'data').exists())
 

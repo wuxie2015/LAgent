@@ -18,7 +18,7 @@ class ToolExecution(TypedDict):
     execution_id: str
     message_id: str
     name: str
-    arguments: dict
+    arguments: Any
     status: str
     started_at: str
     ended_at: str | None

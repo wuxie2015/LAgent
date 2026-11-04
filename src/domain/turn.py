@@ -25,7 +25,7 @@ class ToolExecutionEvent:
     phase: str
     round_number: int
     tool_name: str
-    arguments: dict[str, Any]
+    arguments: Any
     result: dict[str, Any] | None = None
 
 

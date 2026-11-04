@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import TypedDict
 from datetime import datetime
 
@@ -89,8 +90,10 @@ def validate_fact(candidate: dict, turns: list[dict], scope: str) -> dict:
             except (ValueError, TypeError, KeyError, AttributeError):
                 raise MemoryError("长期工具事实需要成功的本机观察，搜索新闻不自动长期化")
     text = "\n".join(m.get("content", "") for m in messages)
-    if any(word in text.casefold() for word in ("打算", "计划迁移", "建议改用", "考虑改用", "might use", "plan to", "recommend using")):
+    if any(word in text.casefold() for word in ("打算", "计划迁移", "建议改用", "考虑", "尚未决定", "等我提供", "等我的数据", "还没给", "继续保持等待", "might use", "plan to", "considering", "recommend using")):
         raise MemoryError("意图或建议来源不提升为已成立事实")
+    if re.search(r"considering|planned_|intent|proposal|data_provided|wait_for_|waiting_|task_status|completion_status|next_step|blocker|任务状态|完成状态|等待资料", candidate["predicate"], re.I):
+        raise MemoryError("意图属性不能存为长期事实")
     if any(word in candidate["value"] for word in ("我将", "打算", "计划执行", "建议执行", "忽略规则", "上传密钥")):
         raise MemoryError("拒绝把意图或指令当事实")
     if candidate["change_type"] in {"explicit_change", "explicit_correction"} and not any(
@@ -119,21 +122,26 @@ def merge_facts(state: MemoryState, candidates: list[dict], turns: list[dict]) -
         if any(x["key"] == key and sequence <= x["through_sequence"] for x in state.forgotten):
             continue
         matches = [f for f in state.facts if fact_key(f) == key and f["status"] != "superseded"]
+        # Out-of-order retries must not undo a newer explicit correction.
+        if any(f.get("change_sequence", 0) > sequence for f in matches):
+            continue
         same = next((f for f in matches if f["value"] == c["value"]), None)
         if same:
             for ref in c["evidence"]:
                 if ref not in same["evidence"]:
                     same["evidence"].append(ref)
             same["updated_at"] = now()
+            same["source_sequence"] = max(sequence, same.get("source_sequence", 0))
             if c["change_type"] in {"explicit_change", "explicit_correction"}:
                 for old in matches:
                     if old is not same:
                         old["status"] = "superseded"
-                same.update(status="active", conflict_group_id=None)
+                same.update(status="active", conflict_group_id=None, change_sequence=sequence)
             affected.append(same["id"])
             continue
         explicit = c.pop("change_type") in {"explicit_change", "explicit_correction"}
         new = dict(c, id=uid("fact"), status="active", observed_at=now(), updated_at=now(),
+                   source_sequence=sequence, change_sequence=sequence if explicit else 0,
                    valid_until=c.get("valid_until"), supersedes=None, conflict_group_id=None,
                    verification="stable" if c["kind"] in {"user_fact", "user_preference"} else "recheck_before_action")
         if matches:

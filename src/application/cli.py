@@ -16,11 +16,20 @@ from ..domain.memory.state import StorageError
 from ..service import OllamaClient, OllamaError
 from ..service.memory_store import JsonMemoryStore
 from ..service.memory_extractor import ModelMemoryExtractor
-from ..tools import ShellTool, WebSearchTool
+from ..tools import ShellTool, WebSearchTool, WebFetchTool
 from ..tools.schedule import ScheduleTool
 from .scheduler import Scheduler
 from ..service.notifications import NotificationDispatcher
 from ..service.schedule_store import ScheduleStore
+
+
+def _enable_line_editing() -> None:
+    """Let readline/libedit edit whole Unicode characters before input decodes them."""
+    try:
+        import readline  # noqa: F401 — importing installs Python's input editor
+    except ImportError:
+        # Piped input and Python builds without readline keep the standard input path.
+        pass
 
 
 def _show_model_event(event: ModelExecutionEvent, debug: bool = False) -> None:
@@ -37,6 +46,8 @@ def _show_tool_event(event: ToolExecutionEvent, debug: bool = False) -> None:
             status["result_count"] = len(result["results"])
         if "error" in result:
             status["error"] = "工具执行失败，详情已提供给模型"
+            status["error_code"] = result.get("error_code", "tool_failed")
+            status["retryable"] = result.get("retryable", False)
         print(f"[工具返回] {event.tool_name} {json.dumps(status, ensure_ascii=False)}")
 
 
@@ -122,6 +133,7 @@ HELP = """/reset 清除短期对话（保留事实和任务，不影响计划任
 
 
 def main() -> None:
+    _enable_line_editing()
     try:
         settings = Settings.from_env()
         logger = configure_logging(settings.log_level)
@@ -132,7 +144,7 @@ def main() -> None:
                 timeout=settings.memory_policy.maintenance_timeout, json_mode=True), settings.memory_policy.extraction_max_chars)
             memory = MemoryManager(system_prompt, store, extractor, settings.memory_policy)
             schedule_tool = None
-            tools = [WebSearchTool(settings.tavily_api_key, settings.search_result_limit), ShellTool()]
+            tools = [WebSearchTool(settings.tavily_api_key, settings.search_result_limit), WebFetchTool(), ShellTool()]
             if settings.scheduler_enabled:
                 settings.schedule_db.parent.mkdir(parents=True, exist_ok=True)
                 schedule_store = ScheduleStore(settings.schedule_db)
@@ -150,10 +162,10 @@ def main() -> None:
 
                 def execute_scheduled(content: str) -> str:
                     # A scheduled run has isolated, in-memory context and search only.
-                    prompt = load_system_prompt() + "\n\n计划任务约束：只读执行，使用网页搜索工具获取信息；不得调用 Shell、修改文件或声称已完成未执行的外部操作。"
+                    prompt = load_system_prompt() + "\n\n计划任务约束：只读执行，使用网页搜索和网页读取工具获取信息；不得调用 Shell、修改文件或声称已完成未执行的外部操作。"
                     background = Agent(
                         client=OllamaClient(settings.ollama_host, settings.model, timeout=30),
-                        tools=[WebSearchTool(settings.tavily_api_key, settings.search_result_limit)],
+                        tools=[WebSearchTool(settings.tavily_api_key, settings.search_result_limit), WebFetchTool()],
                         system_prompt=prompt,
                     )
                     return background.ask(content)
@@ -185,6 +197,9 @@ def main() -> None:
                 on_tool_event=lambda e: _show_tool_event(e, settings.memory_debug_content),
                 on_model_event=lambda e: _show_model_event(e, settings.memory_debug_content))
             print(f"Lin Agent 已启动（模型：{settings.model}）。输入 /help 查看命令。")
+            unfinished = memory.summary()["unfinished_tasks"]
+            if unfinished:
+                print(f"[记忆] 已恢复 {unfinished} 个未完成任务，输入 /memory tasks 查看；不会自动执行。")
             logger.info("agent_started model=%s", settings.model)
             while True:
                 for notice in memory.notices:

@@ -67,7 +67,7 @@ def main():
             apply_tasks(probe, proposed, deepcopy(turn))
             assert probe.tasks and probe.tasks[-1]["status"] != "completed", "任务状态未正确保留待完成作业"
             print("PASS: 真实任务提取、等待状态、无虚假完成")
-    print(json.dumps({"model": args.model, "fact_prompt_version": 1, "task_prompt_version": 1, "real_memory_accessed": False, "shell_enabled": False}, ensure_ascii=False))
+    print(json.dumps({"model": args.model, "fact_prompt_version": 2, "task_prompt_version": 2, "real_memory_accessed": False, "shell_enabled": False}, ensure_ascii=False))
 
 
 if __name__ == "__main__":

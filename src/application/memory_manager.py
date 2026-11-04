@@ -2,16 +2,16 @@ from __future__ import annotations
 
 from copy import deepcopy
 import json
-import re
 import time
 
 from ..domain.memory import MemoryError, MemoryPolicy, MemoryState
 from ..domain.memory.conversation import new_turn, message_record
 from ..domain.memory.fact import merge_facts, fact_key
-from ..domain.memory.task import apply_tasks
+from ..domain.memory.task import apply_tasks, is_task_request, explicit_waiting_change
 from ..domain.memory.privacy import redact
 from ..domain.memory.state import digest, now, uid, StorageError
-from .context_builder import ContextBuilder, compact
+from ..common.logging_config import get_logger
+from .context_builder import ContextBuilder, compact, query_terms
 
 
 class MemoryManager:
@@ -109,7 +109,7 @@ class MemoryManager:
         self._runtime_messages[record["id"]] = deepcopy(message)
         return record["id"]
 
-    def record_tool_starts(self, requests: list[tuple[str, dict]], message_id: str) -> list[str]:
+    def record_tool_starts(self, requests: list[tuple[str, object]], message_id: str) -> list[str]:
         candidate = deepcopy(self.state)
         turn = candidate.recent_turns[-1]
         ids = []
@@ -121,7 +121,7 @@ class MemoryManager:
         self._commit(candidate)
         return ids
 
-    def record_tool_result(self, execution_id: str, name: str, arguments: dict, result: dict):
+    def record_tool_result(self, execution_id: str, name: str, arguments: object, result: dict):
         candidate = deepcopy(self.state)
         turn = candidate.recent_turns[-1]
         record = message_record({"role": "tool", "tool_call_id": execution_id,
@@ -150,30 +150,40 @@ class MemoryManager:
         self._commit(candidate)
         self._runtime_messages.clear()
 
-    def build_context(self, tools: list[dict]):
+    def build_context(self, tools: list[dict], extra_system: str = ""):
         # Credentials needed for this live request stay in memory only, never on disk.
         state = deepcopy(self.state)
         if self.current:
             for message in state.recent_turns[-1]["messages"]:
                 message.update(self._runtime_messages.get(message["id"], {}))
-        return self.builder.build(state, self.system_prompt, tools)
+        names = [tool.get("function", {}).get("name") for tool in tools]
+        system = self.system_prompt + "\n当前请求唯一可用的工具名称：" + json.dumps(names, ensure_ascii=False) + "。列表为空时必须直接用文本回答，不生成工具调用。"
+        return self.builder.build(state, system + "\n" + extra_system, tools, control_message=extra_system)
 
     def _batch(self, turn: dict, kind: str, payload: dict | None = None):
         related = [f for f in self.state.facts if f["status"] != "superseded" and f["scope_id"] in {self.state.scope["id"], "user"}]
-        related.sort(key=lambda f: f.get("updated_at", ""), reverse=True)
+        words = query_terms(turn["messages"][0]["content"])
+        related.sort(key=lambda f: (sum(w in str(f.get("subject", "") + " " + f.get("predicate", "") + " " + f.get("value", "")).casefold()
+                                        for w in words), f.get("updated_at", "")), reverse=True)
         selected = []
         for fact in related:
-            if len(json.dumps(selected + [fact], ensure_ascii=False)) < self.policy.facts_max_chars // 2:
-                selected.append(fact)
+            # References describe attribute identities, not reusable extraction evidence.
+            reference = {k: fact[k] for k in ("scope_id", "subject", "predicate", "value", "kind", "status")}
+            if len(json.dumps(selected + [reference], ensure_ascii=False)) < self.policy.facts_max_chars // 2:
+                selected.append(reference)
         batch = {"schema_version": 1, "scope_id": self.state.scope["id"], "source_turn_ids": [turn["id"]],
                  "turn": payload or turn, "related_facts": selected if kind == "facts" else [],
                  "tasks": [] , "forgotten": []}
+        if kind == "facts":
+            failed_job = next((j for j in self.state.compaction["jobs"] if j["turn_id"] == turn["id"] and j.get("validation_feedback")), None)
+            if failed_job:
+                batch["previous_validation_error"] = failed_job["validation_feedback"]
         if kind == "tasks":
             available = max(500, self.policy.extraction_max_chars // 4)
             for task in sorted(self.state.tasks, key=lambda t: t["id"] == self.state.active_task_id, reverse=True):
                 if task["status"] in {"completed", "cancelled"} and task["id"] not in turn["task_ids"]:
                     continue
-                projection = {k: task[k] for k in ("id", "goal", "status", "next_step", "blockers") if k in task}
+                projection = {k: task[k] for k in ("id", "goal", "status", "next_step", "blockers", "waiting_for", "last_sequence") if k in task}
                 if len(json.dumps(batch["tasks"] + [projection], ensure_ascii=False)) < available:
                     batch["tasks"].append(projection)
             slim = {k: deepcopy(turn[k]) for k in ("id", "sequence", "status", "user_message_id", "final_message_id", "task_ids")}
@@ -219,6 +229,7 @@ class MemoryManager:
             candidate.maintenance["pending_turn_ids"].append(turn_id)
         self._commit(candidate)
         self.notices.append("记忆维护暂未完成，原始历史仍保留：" + code)
+        get_logger().warning("memory_maintenance_failed turn_id=%s revision=%d error=%s", turn_id, self.state.revision, code)
 
     def maintain(self):
         if self.current:
@@ -226,30 +237,40 @@ class MemoryManager:
         calls = 0
         deadline = time.monotonic() + self.policy.maintenance_timeout * self.policy.maintenance_calls
         try:
-            # Old failed updates first. Current turn is also eligible; ordinary conversation can skip.
-            pending = [t for t in self.state.recent_turns if t["task_update_status"] != "applied"]
+            # Latest state changes first. One failed proposal must not block other turns.
+            pending = [t for t in reversed(self.state.recent_turns) if t["task_update_status"] != "applied"]
             for turn in pending:
-                if calls >= self.policy.maintenance_calls or time.monotonic() >= deadline:
-                    break
                 text = turn["messages"][0]["content"]
-                relevant = bool(any(t["status"] not in {"completed", "cancelled"} for t in self.state.tasks) or turn["tool_executions"] or re.search(r"实现|修改|创建|开发|排查|修复|整理|调研|制作|完成|执行|继续|取消|停止|build|create|implement|fix|continue|cancel", text, re.I))
-                changes = []
-                if self.extractor and relevant:
-                    calls += 1
-                    changes = self.extractor.propose_task_changes(self._batch(turn, "tasks"))
-                    if not changes and re.search(r"创建|实现|修改|制作|create|implement", text, re.I) and re.search(r"等我|待我|等待我|wait for my", text, re.I):
-                        raise MemoryError("明确待完成任务未产生状态，保留轮次待重试")
-                candidate = deepcopy(self.state)
-                target = next(t for t in candidate.recent_turns if t["id"] == turn["id"])
-                apply_tasks(candidate, changes, target)
-                target["task_update_status"] = "applied"
-                self._commit(candidate)
+                relevant = bool(turn["tool_executions"] or is_task_request(text))
+                waiting = explicit_waiting_change(turn) if relevant else []
+                if relevant and self.extractor and not waiting and (calls >= self.policy.maintenance_calls or time.monotonic() >= deadline):
+                    continue
+                try:
+                    changes = waiting
+                    if self.extractor and relevant and not waiting:
+                        calls += 1
+                        changes = self.extractor.propose_task_changes(self._batch(turn, "tasks"))
+                    candidate = deepcopy(self.state)
+                    target = next(t for t in candidate.recent_turns if t["id"] == turn["id"])
+                    apply_tasks(candidate, changes, target)
+                    target["task_update_status"] = "applied"
+                    self._commit(candidate)
+                    if changes:
+                        get_logger().info("memory_tasks_updated turn_id=%s revision=%d changes=%d", turn["id"], self.state.revision, len(changes))
+                except StorageError:
+                    raise
+                except Exception as exc:
+                    self._error(type(exc.__cause__ or exc).__name__, turn["id"])
+            attempted = set()
             while len(self.state.recent_turns) > self.policy.recent_turns:
                 if self.extractor is None or calls >= self.policy.maintenance_calls or time.monotonic() >= deadline:
                     break
-                turn = self.state.recent_turns[0]
-                if turn["task_update_status"] != "applied":
+                overflow = len(self.state.recent_turns) - self.policy.recent_turns
+                turn = next((t for t in self.state.recent_turns[:overflow]
+                             if t["id"] not in attempted and t["task_update_status"] == "applied"), None)
+                if turn is None:
                     break
+                attempted.add(turn["id"])
                 checksum = digest(turn)
                 job_id = digest({"turn": turn["id"], "hash": checksum, "policy": 1})
                 candidate = deepcopy(self.state)
@@ -264,10 +285,21 @@ class MemoryManager:
                 while job["next_fragment"] < len(fragments) and calls < self.policy.maintenance_calls and time.monotonic() < deadline:
                     fragment = fragments[job["next_fragment"]]
                     calls += 1
-                    proposals = self.extractor.extract_facts(self._batch(turn, "facts", fragment))
-                    # Validate now, before saving proposals or accepting the next fragment.
-                    probe = deepcopy(self.state)
-                    merge_facts(probe, proposals, [turn])
+                    try:
+                        proposals = self.extractor.extract_facts(self._batch(turn, "facts", fragment))
+                        # Validate before saving proposals or accepting the next fragment.
+                        probe = deepcopy(self.state)
+                        merge_facts(probe, proposals, [turn])
+                    except StorageError:
+                        raise
+                    except Exception as exc:
+                        candidate = deepcopy(self.state)
+                        failed_job = next(j for j in candidate.compaction["jobs"] if j["job_id"] == job_id)
+                        # Only our fixed validation messages are fed back, never raw model output.
+                        failed_job["validation_feedback"] = str(exc) if isinstance(exc, MemoryError) else type(exc).__name__
+                        self._commit(candidate)
+                        self._error(type(exc.__cause__ or exc).__name__, turn["id"])
+                        break
                     candidate = deepcopy(self.state)
                     update = next(j for j in candidate.compaction["jobs"] if j["job_id"] == job_id)
                     update["proposals"].extend(proposals)
@@ -275,16 +307,17 @@ class MemoryManager:
                     self._commit(candidate)
                     job = update
                 if job["next_fragment"] < len(fragments):
-                    break
+                    continue
                 candidate = deepcopy(self.state)
                 fact_ids = merge_facts(candidate, job["proposals"], [turn])
                 ref = self.store.archive(turn, candidate.memory_epoch) if self.store else {"turn_id": turn["id"], "hash": checksum, "epoch": candidate.memory_epoch, "path": None}
                 candidate.archives.append(ref)
                 candidate.compaction["receipts"].append({"job_id": job_id, "turn_id": turn["id"], "source_hash": checksum, "applied_revision": candidate.revision + 1, "fact_ids": fact_ids, "archive": ref})
                 candidate.compaction["jobs"] = [j for j in candidate.compaction["jobs"] if j["job_id"] != job_id]
-                candidate.recent_turns.pop(0)
+                candidate.recent_turns = [t for t in candidate.recent_turns if t["id"] != turn["id"]]
                 candidate.maintenance["pending_turn_ids"] = [x for x in candidate.maintenance["pending_turn_ids"] if x != turn["id"]]
                 self._commit(candidate)
+                get_logger().info("memory_compacted turn_id=%s job_id=%s revision=%d facts=%d recent=%d", turn["id"], job_id, self.state.revision, len(fact_ids), len(self.state.recent_turns))
             if self.state.maintenance["last_error_code"] and all(t["task_update_status"] == "applied" for t in self.state.recent_turns) and len(self.state.recent_turns) <= self.policy.recent_turns:
                 candidate = deepcopy(self.state)
                 candidate.maintenance.update(last_error_code=None, pending_turn_ids=[])

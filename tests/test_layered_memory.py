@@ -421,7 +421,7 @@ class LayeredMemoryTests(unittest.TestCase):
         agent.max_tool_rounds = 2
         self.assertIn("上限", agent.ask("执行任务"))
         self.assertEqual(memory.state.recent_turns[-1]["status"], "failed")
-        self.assertEqual(len(memory.state.recent_turns[-1]["tool_executions"]), 2)
+        self.assertEqual(len(memory.state.recent_turns[-1]["tool_executions"]), 1)
 
     def test_keyboard_interrupt_persisted(self):
         class Model:
@@ -627,10 +627,12 @@ class LayeredMemoryTests(unittest.TestCase):
             self.assertFalse(any(m.get("tool_calls") for m in context))
             self.assertLess(sum(m["role"] == "user" for m in context), 16)
 
-    def test_empty_proposal_for_explicit_waiting_task_is_not_silent_success(self):
+    def test_empty_proposal_for_explicit_waiting_task_uses_user_evidence(self):
         memory = MemoryManager("system", extractor=Extractor())
-        finish(memory, "请创建一份报告，内容等我提供")
+        turn = finish(memory, "请创建一份报告，内容等我提供")
         memory.maintain_safely()
-        self.assertEqual(memory.state.recent_turns[0]["task_update_status"], "failed")
-        self.assertTrue(memory.state.maintenance["pending_turn_ids"])
-        self.assertTrue(memory.notices)
+        self.assertEqual(memory.state.recent_turns[0]["task_update_status"], "applied")
+        self.assertEqual(memory.state.tasks[0]["status"], "waiting_user")
+        self.assertIn("内容等我提供", memory.state.tasks[0]["waiting_for"])
+        self.assertEqual(memory.state.tasks[0]["origin_turn_id"], turn["id"])
+        self.assertFalse(memory.notices)

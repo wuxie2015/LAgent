@@ -88,7 +88,7 @@ class ScheduleCliTests(unittest.TestCase):
             self.assertTrue(settings.schedule_db.exists())
             self.assertIn('"tasks": []', output.getvalue())
 
-    def test_background_agent_has_only_web_search_and_fresh_memory(self):
+    def test_background_agent_has_public_web_tools_and_fresh_memory(self):
         with tempfile.TemporaryDirectory() as directory:
             base = Settings("http://localhost", "model", None, 5, "INFO", memory_enabled=False)
             settings = replace(base, scheduler_enabled=True, schedule_db=Path(directory) / "tasks.sqlite3")
@@ -122,7 +122,7 @@ class ScheduleCliTests(unittest.TestCase):
             self.assertEqual(len(executions), 1)
             self.assertEqual(len(calls), 2)
             background_tools, background_prompt = calls[1]
-            self.assertEqual([tool.name for tool in background_tools], ["web_search"])
+            self.assertEqual([tool.name for tool in background_tools], ["web_search", "web_fetch"])
             self.assertIn("只读执行", background_prompt)
             self.assertNotIn("schedule", [tool.name for tool in background_tools])
 

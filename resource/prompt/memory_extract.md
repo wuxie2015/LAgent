@@ -9,5 +9,10 @@ kind为user_fact、user_preference、project_fact、environment_fact。
 source_type为user_asserted、user_confirmed、tool_observed。
 scope_id使用输入scope_id；明确的用户偏好或用户身份可使用user，项目事实不得跨scope。
 单次最多20条。subject、predicate、value均为非空字符串。不要自行生成内部事实ID。
-必须使用如下字段结构（evidence引用实际输入，不照抄示例ID）：
-{"schema_version":1,"source_turn_ids":["输入轮次ID"],"facts":[{"subject":"user","predicate":"preferred_language","value":"中文","kind":"user_preference","source_type":"user_asserted","scope_id":"user","change_type":"assertion","evidence":[{"turn_id":"输入轮次ID","message_id":"输入消息ID"}]}]}
+输出顶层严格为schema_version（整数1）、source_turn_ids（逐字复制本次响应头）、facts（数组）。
+每项facts必须有subject、predicate、value、kind、source_type、scope_id、change_type、evidence。
+evidence每项只有turn_id和message_id，必须从本次allowed_evidence清单选择；参考属性没有可用证据，不得重提取它们。没有新事实时facts为空数组。
+只提取当前turn中的用户明确陈述和成功本机观察。用户的提问、“请确认”“请记住”不妨碍提取其明确给出的项目事实；纯提问和助手复述不产生新事实。
+“考虑将数据库迁移”属于意图，即使predicate叫considering_database_migration_to也不能提取。偏好和事实更正不创建任务。
+任务的等待/进度/是否提供业务数据/报告是否完成属于tasks，不是长期事实；禁止提取wait_for_data、data_provided、task_status、assistant_behavior等待数据这类属性。报告结构只是本次产物要求，不是用户所有报告的默认偏好，除非用户明确说以后/默认。
+如果输入有previous_validation_error，上一轮候选整批未被采用。必须根据该错误重新审查本轮原话；删除不合规属性后重新返回完整候选列表。next_step及报告业务进展/问题/计划属于任务材料，不提取；若本轮只有这些材料，facts必须为空。不要原样重放被拒绝的候选。

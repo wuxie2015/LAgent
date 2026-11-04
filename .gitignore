@@ -4,3 +4,5 @@ __pycache__/
 .env
 data/
 /memory/
+/test_doc_result/
+/openspec/

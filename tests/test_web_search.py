@@ -1,6 +1,7 @@
 import json
 import unittest
 from unittest.mock import patch
+from urllib.error import HTTPError, URLError
 
 from src.tools.web_search import WebSearchTool
 
@@ -22,6 +23,14 @@ class WebSearchToolTests(unittest.TestCase):
     def test_requires_api_key(self):
         response = WebSearchTool(None).run("Python")
         self.assertIn("Tavily API Key", response["error"])
+
+    def test_network_and_configuration_failures_have_distinct_retry_rules(self):
+        self.assertFalse(WebSearchTool(None).run('query')['retryable'])
+        for error, retryable in ((HTTPError('https://api.tavily.com',403,'Forbidden',{},None),False),
+                                 (HTTPError('https://api.tavily.com',503,'Unavailable',{},None),True),
+                                 (URLError('timeout'),True)):
+            with self.subTest(error=error), patch('src.tools.web_search.urlopen',side_effect=error):
+                self.assertEqual(WebSearchTool('test-key').run('query')['retryable'],retryable)
 
     @patch("src.tools.web_search.urlopen", return_value=_Response())
     def test_maps_tavily_results(self, _urlopen):

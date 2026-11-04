@@ -4,6 +4,7 @@ import json
 import ssl
 from typing import Any
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
 
 import certifi
 
@@ -22,7 +23,7 @@ class WebSearchTool:
                 "properties": {
                     "query": {"type": "string", "description": "简洁、具体的搜索查询"},
                 },
-                "required": ["query"],
+                "required": ["query"], "additionalProperties": False,
             },
         },
     }
@@ -33,14 +34,15 @@ class WebSearchTool:
 
     def run(self, query: str) -> dict[str, Any]:
         logger = get_logger()
-        if not query.strip():
+        if not isinstance(query, str) or not query.strip():
             logger.warning("web_search_rejected_empty_query")
-            return {"error": "搜索词不能为空。"}
+            return {"error": "query必须是非空字符串。", "error_code": "invalid_arguments", "retryable": True}
 
         if not self.api_key:
             logger.warning("web_search_missing_api_key")
             return {
-                "error": "网页搜索尚未配置。请将 Tavily API Key 写入本地 .env 的 TAVILY_API_KEY 后重试。"
+                "error": "网页搜索尚未配置。请将 Tavily API Key 写入本地 .env 的 TAVILY_API_KEY 后重试。",
+                "error_code": "not_configured", "retryable": False
             }
 
         payload = json.dumps(
@@ -63,9 +65,16 @@ class WebSearchTool:
             ssl_context = ssl.create_default_context(cafile=certifi.where())
             with urlopen(request, timeout=20, context=ssl_context) as response:
                 payload = json.loads(response.read().decode("utf-8"))
-        except Exception as exc:  # Return an error to the model rather than ending the chat.
-            logger.exception("web_search_failed provider=tavily error_type=%s", type(exc).__name__)
-            return {"error": f"搜索请求失败：{exc}"}
+        except HTTPError as exc:
+            retryable = exc.code in {408, 429} or exc.code >= 500
+            return {"error": f"搜索服务返回HTTP {exc.code}。", "error_code": "network_error" if retryable else "http_error", "retryable": retryable}
+        except (URLError, OSError, TimeoutError) as exc:
+            logger.warning("web_search_failed error_type=%s", type(exc).__name__)
+            return {"error": "搜索网络请求失败：" + type(exc).__name__, "error_code": "network_error", "retryable": True}
+        except (ValueError, UnicodeError):
+            return {"error": "搜索服务响应不是有效JSON。", "error_code": "invalid_response", "retryable": False}
+        if not isinstance(payload, dict) or not isinstance(payload.get("results"), list) or any(not isinstance(item, dict) for item in payload["results"]):
+            return {"error": "搜索服务响应缺少有效results。", "error_code": "invalid_response", "retryable": False}
 
         results = [
             {
@@ -77,4 +86,4 @@ class WebSearchTool:
         ]
 
         logger.info("web_search_response provider=tavily results=%d", len(results))
-        return {"query": query, "results": results, "note": "请只基于这些结果作答，并在结论旁附 URL。"}
+        return {"query": query, "results": results, "note": "这里只是搜索摘要；需要全文或源码时用web_fetch(url)，不要把id/cursor/url当web_search参数。引用支持结论的URL。"}
