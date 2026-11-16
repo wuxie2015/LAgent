@@ -5,8 +5,9 @@ from typing import TypedDict
 from .fact import EvidenceRef
 
 from .fact import evidence_messages
+from .conversation import NON_COMPLETION_TOOLS
 from .privacy import sensitive
-from .state import MemoryState, MemoryError, now, uid
+from .state import MemoryState, MemoryValidationError, now, uid
 
 
 class TaskStep(TypedDict):
@@ -45,9 +46,9 @@ def is_task_request(text: str) -> bool:
     """State-changing work, rather than a factual correction or status question."""
     if re.search(r"明确更正|补充.*(?:事实|偏好)|默认.*(?:回复|标注)|时区.*偏好", text) and not re.search(r"修改.*(?:文件|代码)|实现|开发", text):
         return False
-    if re.search(r"(?:是否|有哪|为什么|什么是|解释|列出.*(?:任务|作业)|现在.*吗|完成了吗|缺少什么|提供什么|状态是什么|已经.*吗)", text) and not re.search(r"请.*(?:创建|实现|修改|写完|取消|停止|部署|安装|运行|删除|写入|生成)", text):
+    if re.search(r"(?:是否|有哪|为什么|什么是|解释|列出.*(?:任务|作业)|现在.*吗|完成了吗|缺少什么|提供什么|状态是什么|已经.*吗)", text) and not re.search(r"请.*(?:创建|实现|修改|写完|取消|停止|部署|安装|运行|启动|删除|写入|生成)", text):
         return False
-    return bool(re.search(r"实现|修改|创建|开发|排查|修复|整理|调研|制作|完成|执行|继续|取消|停止|写完|等待|等我|返工|恢复|部署|安装|运行|删除|写入|撰写|生成|build|create|implement|fix|continue|cancel|resume|deploy|install|run|delete|write|generate", text, re.I))
+    return bool(re.search(r"实现|修改|创建|开发|排查|修复|整理|调研|制作|完成|执行|继续|取消|停止|写完|等待|等我|返工|恢复|部署|安装|运行|启动|删除|写入|撰写|生成|build|create|implement|fix|continue|cancel|resume|deploy|install|run|delete|write|generate", text, re.I))
 
 
 def _goal_key(goal: str) -> str:
@@ -56,6 +57,8 @@ def _goal_key(goal: str) -> str:
 
 def explicit_waiting_change(turn: dict) -> list[dict]:
     """Recover an empty model proposal only from an explicit creation + wait request."""
+    if any(message["role"] == "user" for message in turn["messages"][1:]):
+        return []
     text = turn["messages"][0]["content"]
     clauses = re.split(r"[，。；,;]", text)
     goal = re.search(r"(?:创建|制作|实现|修改|create|implement).+?(?=[，。；,!]|$)", text, re.I)
@@ -72,86 +75,90 @@ def _resolve_task(state, change, turn):
     if change.get("task_id"):
         task = next((t for t in state.tasks if t["id"] == change["task_id"]), None)
         if task is None:
-            raise MemoryError("任务ID不存在")
+            raise MemoryValidationError("任务ID不存在")
         return task
     matches = [t for t in state.tasks if _goal_key(t["goal"]) == _goal_key(change["goal"])]
     text = turn["messages"][0]["content"]
     new_request = bool(re.search(r"另一|另外|新建|新的一|another|new task", text, re.I))
     if matches and not new_request:
         if len(matches) != 1:
-            raise MemoryError("已有多个同目标任务，必须明确task_id")
+            raise MemoryValidationError("已有多个同目标任务，必须明确task_id")
         return matches[0]
     # An update lacking identity must not silently become another deliverable.
-    if not new_request and not re.search(r"创建|制作|实现|开发|build|create|implement", text, re.I):
+    if not new_request and not re.search(r"创建|制作|实现|开发|启动|build|create|implement", text, re.I):
         related = [t for t in state.tasks if t["id"] in turn["task_ids"]]
         if len(related) == 1 and any(word in text and word in change["goal"] and word in related[0]["goal"]
                                     for word in ("报告", "清单", "文件", "功能", "report", "checklist")):
             return related[0]
         if state.tasks:
-            raise MemoryError("任务更新缺少明确task_id")
+            raise MemoryValidationError("任务更新缺少明确task_id")
     return None
 
 
 def apply_tasks(state: MemoryState, changes: list[dict], turn: dict) -> None:
     if len(changes) > 10:
-        raise MemoryError("单轮任务变更过多")
+        raise MemoryValidationError("单轮任务变更过多")
     for c in changes:
         allowed = {"task_id", "goal", "status", "evidence", "completion_evidence", "acceptance_criteria", "steps", "next_step", "blockers", "waiting_for"}
         if not isinstance(c, dict) or set(c) - allowed or not {"goal", "status", "evidence"} <= set(c) or sensitive(c):
-            raise MemoryError("任务候选字段无效或包含敏感信息")
+            raise MemoryValidationError("任务候选字段无效或包含敏感信息")
         if not isinstance(c["goal"], str) or not 1 <= len(c["goal"]) <= 1000:
-            raise MemoryError("任务目标无效")
+            raise MemoryValidationError("任务目标无效")
         source = evidence_messages(c["evidence"], [turn])
         if not any(m["role"] == "user" for m in source):
-            raise MemoryError("任务必须有用户目标来源")
+            raise MemoryValidationError("任务必须有用户目标来源")
         if not is_task_request(turn["messages"][0]["content"]):
-            raise MemoryError("事实确认、偏好和普通问答不创建或更新作业")
+            raise MemoryValidationError("事实确认、偏好和普通问答不创建或更新作业")
         task = _resolve_task(state, c, turn)
         if task and turn["sequence"] < task.get("last_sequence", 0):
             continue
         status = c["status"]
         if status not in TRANSITIONS or (task and status not in TRANSITIONS[task["status"]] and not (status == "completed" and task["status"] in {"waiting_user", "blocked"})):
-            raise MemoryError("非法任务状态转换")
+            raise MemoryValidationError("非法任务状态转换")
         user_text = turn["messages"][0]["content"]
         if task and task["status"] in {"completed", "cancelled"} and status == "in_progress" and not any(
             w in user_text.casefold() for w in ("继续", "恢复", "返工", "重做", "未完成", "resume", "continue", "reopen")
         ):
-            raise MemoryError("恢复已结束任务需要用户明确要求")
+            raise MemoryValidationError("恢复已结束任务需要用户明确要求")
         if status == "cancelled" and not any(w in user_text.casefold() for w in ("取消", "停止", "不用做", "cancel", "stop")):
-            raise MemoryError("取消任务需要用户来源")
+            raise MemoryValidationError("取消任务需要用户来源")
         for name in ("acceptance_criteria", "blockers"):
             value = c.get(name, [])
             if not isinstance(value, list) or len(value) > 20 or any(not isinstance(x, str) or len(x) > 1000 for x in value):
-                raise MemoryError("任务列表字段无效")
+                raise MemoryValidationError("任务列表字段无效")
         for name in ("next_step", "waiting_for"):
             if c.get(name) is not None and (not isinstance(c[name], str) or len(c[name]) > 2000):
-                raise MemoryError("任务文本无效")
+                raise MemoryValidationError("任务文本无效")
         if status == "blocked" and not c.get("blockers"):
-            raise MemoryError("阻塞任务需要原因")
+            raise MemoryValidationError("阻塞任务需要原因")
         if status == "waiting_user" and not c.get("waiting_for"):
-            raise MemoryError("等待用户需要说明缺少什么")
+            raise MemoryValidationError("等待用户需要说明缺少什么")
         completion = c.get("completion_evidence", [])
         if status == "completed":
             refs = evidence_messages(completion, [turn])
             if turn["status"] != "completed" or not any(m["role"] in {"assistant", "tool"} for m in refs):
-                raise MemoryError("完成任务缺少成功轮次证据")
-            executions = turn["tool_executions"]
+                raise MemoryValidationError("完成任务缺少成功轮次证据")
+            executions = [e for e in turn["tool_executions"] if e["name"] not in NON_COMPLETION_TOOLS]
+            completion_results = {e["result_message_id"] for e in executions}
+            if not any(m["role"] == "assistant" or m["id"] in completion_results for m in refs):
+                raise MemoryValidationError("技能匹配或用户沟通结果不能作为任务完成证据")
             requires_execution = bool(re.search(r"(?:创建|修改|写入|删除|运行|执行|部署|安装).{0,15}(?:文件|目录|代码|命令|程序|服务)|(?:create|edit|write|delete|run|deploy|install).{0,25}(?:file|directory|code|command|service)", user_text, re.I))
             if requires_execution and not executions:
-                raise MemoryError("本机操作任务缺少实际执行证据")
-            if executions and (any(e["status"] != "succeeded" for e in executions) or not any(m["role"] == "tool" for m in refs)):
-                raise MemoryError("执行任务需要成功工具结果证据")
+                raise MemoryValidationError("本机操作任务缺少实际执行证据")
+            if executions and (any(e["status"] != "succeeded" for e in executions)
+                               or not any(m["id"] in completion_results for m in refs)):
+                raise MemoryValidationError("执行任务需要成功工具结果证据")
         steps = c.get("steps", [])
         if not isinstance(steps, list) or len(steps) > 30:
-            raise MemoryError("任务步骤无效")
+            raise MemoryValidationError("任务步骤无效")
         checked_steps = []
         for step in steps:
             if not isinstance(step, dict) or set(step) - {"description", "status", "evidence"} or not isinstance(step.get("description"), str) or step.get("status") not in {"pending", "in_progress", "completed", "failed"}:
-                raise MemoryError("步骤结构无效")
+                raise MemoryValidationError("步骤结构无效")
             if step["status"] == "completed":
                 refs = evidence_messages(step.get("evidence", []), [turn])
                 if not any(m["role"] in {"assistant", "tool"} for m in refs):
-                    raise MemoryError("完成步骤不能仅引用用户请求")
+                    raise MemoryValidationError("完成步骤不能仅引用用户请求")
             checked_steps.append(dict(step, id=uid("step")))
         if task is None:
             task = {"id": uid("task"), "goal": c["goal"], "scope_id": state.scope["id"], "origin_turn_id": turn["id"], "created_at": now(), "steps": []}

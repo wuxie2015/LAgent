@@ -6,6 +6,7 @@ import unittest
 from src.application.memory_manager import MemoryManager
 from src.application.agent import Agent, AgentStateError
 from src.domain.memory import MemoryError, MemoryPolicy, MemoryState
+from src.domain.memory.state import MemoryValidationError
 from src.domain.memory.fact import merge_facts
 from src.domain.memory.task import apply_tasks, is_task_request
 from src.service.memory_extractor import ModelMemoryExtractor
@@ -119,7 +120,7 @@ class MemoryRegressionTests(unittest.TestCase):
             def extract_facts(self,batch):
                 self.fact_calls.append(batch)
                 if not batch.get('previous_validation_error'):
-                    raise MemoryError('意图属性不能存为长期事实')
+                    raise MemoryValidationError('意图属性不能存为长期事实')
                 return []
         extractor=Repairing();memory=MemoryManager('system',extractor=extractor,policy=MemoryPolicy(recent_turns=1))
         finish(memory);finish(memory)

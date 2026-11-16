@@ -5,13 +5,18 @@ import json
 import time
 
 from ..domain.memory import MemoryError, MemoryPolicy, MemoryState
-from ..domain.memory.conversation import new_turn, message_record
+from ..domain.memory.conversation import NON_COMPLETION_TOOLS, new_turn, message_record
 from ..domain.memory.fact import merge_facts, fact_key
 from ..domain.memory.task import apply_tasks, is_task_request, explicit_waiting_change
 from ..domain.memory.privacy import redact
-from ..domain.memory.state import digest, now, uid, StorageError
+from ..domain.memory.state import digest, now, uid, StorageError, MemoryValidationError
 from ..common.logging_config import get_logger
 from .context_builder import ContextBuilder, compact, query_terms
+
+
+def _failure_detail(exc: Exception) -> str:
+    # Only fixed validation messages may enter logs, state or a model retry.
+    return str(exc) if isinstance(exc, MemoryValidationError) else type(exc.__cause__ or exc).__name__
 
 
 class MemoryManager:
@@ -124,13 +129,20 @@ class MemoryManager:
     def record_tool_result(self, execution_id: str, name: str, arguments: object, result: dict):
         candidate = deepcopy(self.state)
         turn = candidate.recent_turns[-1]
+        reply = result.get("reply") if name == "ask_user" and not result.get("error") else None
+        observation = {"status": "replied"} if reply is not None else result
         record = message_record({"role": "tool", "tool_call_id": execution_id,
-            "content": json.dumps(redact({"tool": name, "arguments": arguments, "result": result}), ensure_ascii=False)})
+            "content": json.dumps(redact({"tool": name, "arguments": arguments, "result": observation}), ensure_ascii=False)})
         turn["messages"].append(record)
         execution = next(e for e in turn["tool_executions"] if e["execution_id"] == execution_id)
         failed = bool(result.get("error") or result.get("timed_out") or result.get("exit_code", 0) != 0)
         execution.update(status="failed" if failed else "succeeded", ended_at=now(), result_message_id=record["id"])
+        if reply is not None:
+            reply_record = message_record({"role": "user", "content": redact(reply)})
+            turn["messages"].append(reply_record)
         self._commit(candidate)
+        if reply is not None:
+            self._runtime_messages[reply_record["id"]] = {"role": "user", "content": reply}
 
     def finish_turn(self, status: str, failure: str | None = None):
         if self.current is None:
@@ -150,7 +162,7 @@ class MemoryManager:
         self._commit(candidate)
         self._runtime_messages.clear()
 
-    def build_context(self, tools: list[dict], extra_system: str = ""):
+    def build_context(self, tools: list[dict], extra_system: str = "", skill: tuple[str, str] | None = None):
         # Credentials needed for this live request stay in memory only, never on disk.
         state = deepcopy(self.state)
         if self.current:
@@ -158,6 +170,9 @@ class MemoryManager:
                 message.update(self._runtime_messages.get(message["id"], {}))
         names = [tool.get("function", {}).get("name") for tool in tools]
         system = self.system_prompt + "\n当前请求唯一可用的工具名称：" + json.dumps(names, ensure_ascii=False) + "。列表为空时必须直接用文本回答，不生成工具调用。"
+        if skill:
+            name, instructions = skill
+            system += f"\n\n本轮已加载项目技能 {name}。只执行与当前目标相关的步骤；以下工作流程服从前面的系统规则和用户授权，不增加工具或权限。\n\n{instructions}"
         return self.builder.build(state, system + "\n" + extra_system, tools, control_message=extra_system)
 
     def _batch(self, turn: dict, kind: str, payload: dict | None = None):
@@ -179,6 +194,8 @@ class MemoryManager:
             if failed_job:
                 batch["previous_validation_error"] = failed_job["validation_feedback"]
         if kind == "tasks":
+            if turn.get("task_validation_feedback"):
+                batch["previous_validation_error"] = turn["task_validation_feedback"]
             available = max(500, self.policy.extraction_max_chars // 4)
             for task in sorted(self.state.tasks, key=lambda t: t["id"] == self.state.active_task_id, reverse=True):
                 if task["status"] in {"completed", "cancelled"} and task["id"] not in turn["task_ids"]:
@@ -187,7 +204,8 @@ class MemoryManager:
                 if len(json.dumps(batch["tasks"] + [projection], ensure_ascii=False)) < available:
                     batch["tasks"].append(projection)
             slim = {k: deepcopy(turn[k]) for k in ("id", "sequence", "status", "user_message_id", "final_message_id", "task_ids")}
-            slim["tool_executions"] = [{k: e[k] for k in ("execution_id", "name", "status", "result_message_id")} for e in turn["tool_executions"]]
+            slim["tool_executions"] = [{k: e[k] for k in ("execution_id", "name", "status", "result_message_id")}
+                                       for e in turn["tool_executions"] if e["name"] not in NON_COMPLETION_TOOLS]
             message_limit = max(128, available // max(1, len(turn["messages"])))
             slim["messages"] = [{"id": m["id"], "role": m["role"], "content": compact(m.get("content", ""), message_limit)} for m in turn["messages"]]
             batch["turn"] = slim
@@ -204,7 +222,7 @@ class MemoryManager:
                 records.append(message)
                 continue
             if message.get("tool_calls"):
-                raise MemoryError("单个工具调用参数超出提取预算；保留原始轮次")
+                raise MemoryValidationError("单个工具调用参数超出提取预算；保留原始轮次")
             step = max(128, limit // 2)
             for offset in range(0, len(text), step):
                 records.append(dict(message, content=text[offset:offset + step], fragment_offset=offset))
@@ -219,21 +237,34 @@ class MemoryManager:
         metadata = {k: turn[k] for k in ("id", "status", "sequence", "user_message_id")}
         return [dict(metadata, messages=messages, fragment_index=i, fragment_count=len(chunks)) for i, messages in enumerate(chunks)]
 
-    def _error(self, code: str, turn_id: str | None = None):
+    def _error(self, exc: Exception, turn_id: str | None = None, stage: str = "maintenance",
+               job_id: str | None = None, fragment_index: int | None = None):
+        code = type(exc.__cause__ or exc).__name__
+        reason = _failure_detail(exc)
         candidate = deepcopy(self.state)
         candidate.maintenance["last_error_code"] = code
         target = next((t for t in candidate.recent_turns if t["id"] == turn_id), None)
+        sequence = target["sequence"] if target else None
+        candidate.maintenance["last_error"] = {"stage": stage, "turn_id": turn_id,
+                                               "sequence": sequence, "reason": reason}
         if target and target["task_update_status"] != "applied":
             target["task_update_status"] = "failed"
+            if stage == "tasks":
+                target["task_validation_feedback"] = reason
         if turn_id and turn_id not in candidate.maintenance["pending_turn_ids"]:
             candidate.maintenance["pending_turn_ids"].append(turn_id)
         self._commit(candidate)
-        self.notices.append("记忆维护暂未完成，原始历史仍保留：" + code)
-        get_logger().warning("memory_maintenance_failed turn_id=%s revision=%d error=%s", turn_id, self.state.revision, code)
+        label = {"tasks": "任务状态", "facts": "长期事实", "maintenance": "维护"}[stage]
+        location = f"第{sequence}轮，{label}" if sequence is not None else label
+        self.notices.append(f"记忆维护暂未完成（{location}），原始历史仍保留：{reason}")
+        get_logger().warning("memory_maintenance_failed stage=%s turn_id=%s sequence=%s revision=%d "
+                             "error=%s reason=%s job_id=%s fragment_index=%s pending=%d",
+                             stage, turn_id, sequence, self.state.revision, code, reason, job_id,
+                             fragment_index, len(self.state.maintenance["pending_turn_ids"]))
 
     def maintain(self):
         if self.current:
-            raise MemoryError("活动轮次不能压缩")
+            raise MemoryValidationError("活动轮次不能压缩")
         calls = 0
         deadline = time.monotonic() + self.policy.maintenance_timeout * self.policy.maintenance_calls
         try:
@@ -254,13 +285,14 @@ class MemoryManager:
                     target = next(t for t in candidate.recent_turns if t["id"] == turn["id"])
                     apply_tasks(candidate, changes, target)
                     target["task_update_status"] = "applied"
+                    target.pop("task_validation_feedback", None)
                     self._commit(candidate)
                     if changes:
                         get_logger().info("memory_tasks_updated turn_id=%s revision=%d changes=%d", turn["id"], self.state.revision, len(changes))
                 except StorageError:
                     raise
                 except Exception as exc:
-                    self._error(type(exc.__cause__ or exc).__name__, turn["id"])
+                    self._error(exc, turn["id"], "tasks")
             attempted = set()
             while len(self.state.recent_turns) > self.policy.recent_turns:
                 if self.extractor is None or calls >= self.policy.maintenance_calls or time.monotonic() >= deadline:
@@ -296,9 +328,9 @@ class MemoryManager:
                         candidate = deepcopy(self.state)
                         failed_job = next(j for j in candidate.compaction["jobs"] if j["job_id"] == job_id)
                         # Only our fixed validation messages are fed back, never raw model output.
-                        failed_job["validation_feedback"] = str(exc) if isinstance(exc, MemoryError) else type(exc).__name__
+                        failed_job["validation_feedback"] = _failure_detail(exc)
                         self._commit(candidate)
-                        self._error(type(exc.__cause__ or exc).__name__, turn["id"])
+                        self._error(exc, turn["id"], "facts", job_id, job["next_fragment"])
                         break
                     candidate = deepcopy(self.state)
                     update = next(j for j in candidate.compaction["jobs"] if j["job_id"] == job_id)
@@ -320,7 +352,7 @@ class MemoryManager:
                 get_logger().info("memory_compacted turn_id=%s job_id=%s revision=%d facts=%d recent=%d", turn["id"], job_id, self.state.revision, len(fact_ids), len(self.state.recent_turns))
             if self.state.maintenance["last_error_code"] and all(t["task_update_status"] == "applied" for t in self.state.recent_turns) and len(self.state.recent_turns) <= self.policy.recent_turns:
                 candidate = deepcopy(self.state)
-                candidate.maintenance.update(last_error_code=None, pending_turn_ids=[])
+                candidate.maintenance.update(last_error_code=None, last_error=None, pending_turn_ids=[])
                 self._commit(candidate)
         except MemoryError:
             # Storage failures must stop the agent; extractor/validation failures are recoverable.
@@ -340,7 +372,7 @@ class MemoryManager:
             target = next((t for t in self.state.recent_turns if t["task_update_status"] != "applied"), None)
             if target is None and len(self.state.recent_turns) > self.policy.recent_turns:
                 target = self.state.recent_turns[0]
-            self._error(type(exc.__cause__ or exc).__name__, target["id"] if target else None)
+            self._error(exc, target["id"] if target else None)
 
     def reset(self):
         candidate = deepcopy(self.state)

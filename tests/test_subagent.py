@@ -332,8 +332,11 @@ class ReadOnlyTests(unittest.TestCase):
             (private / 'state.json').write_text('私人记忆')
             self.assertIn('error', ProjectFilesTool(root, [private]).run('read', 'custom-memory/state.json'))
             for index in range(25):
-                (root / f'empty-match-{index}').touch()
-            search = tool.run('search', query='empty-match')
+                (root / f'empty-match-{index}').write_text('body-match')
+            found = tool.run('find', query='empty-match-*')
+            self.assertEqual(len(found['paths']), 20)
+            self.assertTrue(found['truncated'])
+            search = tool.run('search', query='body-match')
             self.assertEqual(len(search['matches']), 20)
             self.assertTrue(search['truncated'])
 

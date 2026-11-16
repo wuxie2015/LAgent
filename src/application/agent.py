@@ -63,6 +63,10 @@ class Agent:
         delegate = self.tools.get("delegate_task")
         if delegate is not None:
             delegate.begin_request(budget)
+        skill_search = self.tools.get("skill_search")
+        if skill_search is not None:
+            skill_search.begin_request(budget)
+        active_skill = None
         invalid_tool_retry = False
         forced_final = False
         executor = ToolExecutor(self.tools)
@@ -71,7 +75,7 @@ class Agent:
                 final_only = forced_final or budget.remaining == 1 or round_number == self.max_tool_rounds
                 definitions = [] if final_only else [tool.definition for tool in self.tools.values()]
                 notice = "已到本轮最终回答阶段：工具已关闭。请基于已获得的成功结果回答，给出来源，并明确无法确认的部分；不得再请求工具，也不要仅回复达到上限。搜索摘要、社区文章或issue提案不能证明官方当前实现。404只说明该URL读取失败，不能推出源码不存在或提示词未公开；未取得提示词源码时只说“未取得完整system prompt原文”，不要编造文件路径、CLI选项或运行时事件格式。" if final_only else ""
-                messages = self.memory.build_context(definitions, extra_system=notice)
+                messages = self.memory.build_context(definitions, extra_system=notice, skill=active_skill)
                 budget.consume_parent()
                 self._emit_model_event("requested", round_number, messages)
                 started = time.monotonic()
@@ -95,12 +99,15 @@ class Agent:
                     self.memory.append_message({"role": "assistant", "content": answer})
                     return self._finish_answer(answer, "failed", "model_step_limit")
                 unknown = any(call.get("function", {}).get("name") not in self.tools for call in calls)
-                if unknown:
+                mixed_user_prompt = len(calls) > 1 and any(call["function"]["name"] == "ask_user" for call in calls)
+                if unknown or mixed_user_prompt:
                     if invalid_tool_retry or final_only:
-                        raise AgentStateError("模型重复请求未注册工具，已阻止执行")
+                        raise AgentStateError("模型重复请求未注册工具，已阻止执行" if unknown
+                                              else "模型重复混合用户沟通与其他调用，已阻止执行")
                     invalid_tool_retry = True
-                    self.memory.append_message({"role": "assistant", "content":
-                        "[本次模型请求了不可用工具，调用已被阻止，未执行任何操作。请仅使用实际提供的工具；无工具时直接基于现有资料回答，不得虚构调用。]"})
+                    correction = ("[本次模型请求了不可用工具，调用已被阻止，未执行任何操作。请仅使用实际提供的工具；无工具时直接基于现有资料回答，不得虚构调用。]"
+                                  if unknown else "[ask_user 必须单独调用。该批次未执行，请先单独询问用户，再根据回复决定后续操作。]")
+                    self.memory.append_message({"role": "assistant", "content": correction})
                     continue
                 message_id = self.memory.append_message(message)
                 if not calls:
@@ -109,9 +116,10 @@ class Agent:
                 execution_ids = self.memory.record_tool_starts(tool_calls, message_id)
                 for tool_name, arguments in tool_calls:
                     self._emit_tool_event("started", round_number, tool_name, arguments)
-                # Delegate synchronously, without forking or spawning from an executor thread.
-                # Mixed batches are serialized to avoid reading while main tools write.
-                if any(name == "delegate_task" for name, _ in tool_calls):
+                # Keep terminal input, writes and verification ordered even when
+                # the model emits them in the same batch.
+                if any(name in {"ask_user", "delegate_task", "skill_search", "write_file", "run_python"}
+                       for name, _ in tool_calls):
                     results = [executor.execute(*item) for item in tool_calls]
                 else:
                     with ThreadPoolExecutor(max_workers=len(tool_calls)) as pool:
@@ -119,19 +127,28 @@ class Agent:
                 if any(result.get("error_code") == "repeat_limit" for result in results):
                     forced_final = True
                 for execution_id, (tool_name, arguments), result in zip(execution_ids, tool_calls, results):
+                    if tool_name == "skill_search" and result.get("status") == "matched":
+                        active_skill = (result["skill"], result["instructions"])
+                        # Keep the chosen name in the trace but never store the skill body.
+                        result = {"status": "matched", "skill": result["skill"]}
                     try:
                         self.memory.record_tool_result(execution_id, tool_name, arguments, result)
                     except (StorageError, OSError) as exc:
                         raise StorageError("命令可能已执行，结果未可靠写入记忆；停止后续执行，请重启核查，勿直接重试") from exc
                     self._emit_tool_event("completed", round_number, tool_name, arguments, result)
+                    if tool_name == "ask_user":
+                        if result.get("error_code") == "user_input_cancelled":
+                            raise KeyboardInterrupt
+                        if result.get("error_code") == "user_input_closed":
+                            raise EOFError
             answer = self._partial_answer()
             self.memory.append_message({"role": "assistant", "content": answer})
             return self._finish_answer(answer, "failed", "model_step_limit")
         except StorageError:
             # The disk may contain an execution checkpoint. Do not overwrite or replay it.
             raise
-        except KeyboardInterrupt:
-            self.memory.finish_turn("interrupted", "KeyboardInterrupt")
+        except (KeyboardInterrupt, EOFError) as exc:
+            self.memory.finish_turn("interrupted", type(exc).__name__)
             raise
         except Exception as exc:
             self.memory.finish_turn("failed", type(exc).__name__)
@@ -173,10 +190,16 @@ class Agent:
             elif payload.get("tool") == "web_fetch":
                 url = result.get("url", "")
                 evidence[url] = f"- 已读取：{url}\n  正文片段：{result.get('content', '')[:600]}"
+            elif payload.get("tool") == "write_file":
+                path = result["path"]
+                evidence[f"write:{path}"] = f"- 已{'新建' if result['status'] == 'created' else '修改'}：{path}"
+            elif payload.get("tool") == "run_python":
+                evidence["run_python"] = "- Python 运行超时。" if result["timed_out"] else (
+                    f"- Python 运行退出码：{result['exit_code']}（不代表所有检查均通过）。")
         parts.extend(list(evidence.values())[:6])
         if len(parts) == 1:
-            parts.append("尚无可展示的网页证据；已执行操作及错误保存在本轮工具记录中，不会自动重放。")
-        parts.append("未完成部分：仍需核实原始问题中尚未被上述来源支持的内容。最终阶段的额外工具请求已阻止。")
+            parts.append("尚无可展示的成功结果；已执行操作及错误保存在本轮工具记录中，不会自动重放。")
+        parts.append("未完成部分：原始请求中未被上述结果覆盖的内容仍待处理。最终阶段的额外工具请求已阻止。")
         return "\n\n".join(parts)
 
     def _emit_tool_event(

@@ -12,6 +12,10 @@ class MemoryError(RuntimeError):
     pass
 
 
+class MemoryValidationError(MemoryError):
+    """A fixed validation message safe to show and feed back to the extractor."""
+
+
 class StorageError(MemoryError):
     pass
 

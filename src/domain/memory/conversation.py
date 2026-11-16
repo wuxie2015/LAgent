@@ -5,6 +5,9 @@ from typing import Any, TypedDict
 from .state import now, uid
 
 
+NON_COMPLETION_TOOLS = {"skill_search", "ask_user"}
+
+
 class MessageRecord(TypedDict, total=False):
     id: str
     role: str

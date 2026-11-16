@@ -24,6 +24,10 @@ def finish(memory, user, answer):
     memory.finish_turn("completed")
 
 
+def mentions_chinese(value):
+    return "中文" in value or "chinese" in value.casefold()
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="http://127.0.0.1:11434")
@@ -39,14 +43,14 @@ def main():
                 finish(memory, "1加1等于多少？", "2。")
                 memory.maintain_safely()
             assert len(memory.state.recent_turns) == 10, memory.summary()
-            assert any("中文" in f["value"] for f in memory.state.facts), "模型没有提取明确语言偏好"
+            assert any(mentions_chinese(f["value"]) for f in memory.state.facts), "模型没有提取明确语言偏好"
             assert len(memory.state.archives) == 1
             print("PASS: 11轮窗口、真实模型事实提取、归档")
         with JsonMemoryStore(Path(directory)) as store:
             memory = MemoryManager("你是助手，请基于提供的记忆回答。", store, extractor)
             memory.begin_turn("我的默认回复语言偏好是什么？")
             result = OllamaClient(args.host, args.model, timeout=30).chat(memory.build_context([]), [])
-            assert "中文" in result["message"]["content"], "恢复后回答没有使用长期事实"
+            assert mentions_chinese(result["message"]["content"]), "恢复后回答没有使用长期事实"
             memory.append_message(result["message"])
             memory.finish_turn("completed")
             print("PASS: 重启恢复、模型读取长期事实")
@@ -67,7 +71,7 @@ def main():
             apply_tasks(probe, proposed, deepcopy(turn))
             assert probe.tasks and probe.tasks[-1]["status"] != "completed", "任务状态未正确保留待完成作业"
             print("PASS: 真实任务提取、等待状态、无虚假完成")
-    print(json.dumps({"model": args.model, "fact_prompt_version": 2, "task_prompt_version": 2, "real_memory_accessed": False, "shell_enabled": False}, ensure_ascii=False))
+    print(json.dumps({"model": args.model, "fact_prompt_version": 3, "task_prompt_version": 3, "real_memory_accessed": False, "shell_enabled": False}, ensure_ascii=False))
 
 
 if __name__ == "__main__":

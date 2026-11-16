@@ -55,7 +55,7 @@ class SubtaskRequest:
 
 
 class RequestBudget:
-    """Reserve child calls before launch; never spend the final parent call."""
+    """Reserve auxiliary calls before launch; never spend the final parent call."""
     def __init__(self, policy: SubagentPolicy):
         self.policy = policy
         self.request_id = 'request_' + uuid4().hex
@@ -81,6 +81,13 @@ class RequestBudget:
             self.remaining -= allocation
             self.tasks += 1
             return allocation
+
+    def reserve_skill_search(self) -> bool:
+        with self.lock:
+            if self.remaining <= 1:
+                return False
+            self.remaining -= 1
+            return True
 
     def refund(self, count):
         with self.lock:

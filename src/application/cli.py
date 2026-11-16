@@ -17,7 +17,12 @@ from ..service import OllamaClient, OllamaError
 from ..service.memory_store import JsonMemoryStore
 from ..service.memory_extractor import ModelMemoryExtractor
 from ..tools import ShellTool, WebSearchTool, WebFetchTool
+from ..tools.ask_user import AskUserTool
+from ..tools.read_only import ProjectFilesTool
+from ..tools.run_python import RunPythonTool
 from ..tools.schedule import ScheduleTool
+from ..tools.skill_search import SkillSearchTool
+from ..tools.write_file import WriteFileTool
 from .scheduler import Scheduler
 from ..service.notifications import NotificationDispatcher
 from ..service.schedule_store import ScheduleStore
@@ -36,6 +41,20 @@ def _show_model_event(event: ModelExecutionEvent, debug: bool = False) -> None:
     print(f"[模型 · 第 {event.round_number} 轮] {'请求' if event.phase == 'requested' else '返回'}")
 
 
+def _read_user_reply(message: str) -> str:
+    print(f"\nAgent：{message}", flush=True)
+    while True:
+        try:
+            reply = input("你（回复）：").strip()
+        except UnicodeDecodeError:
+            print("回复解码失败，请用 UTF-8 重新输入。")
+            continue
+        if reply == "/exit":
+            raise EOFError
+        if reply:
+            return reply
+
+
 def _show_tool_event(event: ToolExecutionEvent, debug: bool = False) -> None:
     if event.phase == "started":
         print(f"[工具调用 · 第 {event.round_number} 轮] {event.tool_name}")
@@ -44,6 +63,10 @@ def _show_tool_event(event: ToolExecutionEvent, debug: bool = False) -> None:
         status = {k: result[k] for k in ("exit_code", "timed_out", "stdout_truncated", "stderr_truncated") if k in result}
         if "results" in result:
             status["result_count"] = len(result["results"])
+        if event.tool_name == "skill_search" and "status" in result:
+            status["status"] = result["status"]
+            if "skill" in result:
+                status["skill"] = result["skill"]
         if "error" in result:
             status["error"] = "工具执行失败，详情已提供给模型"
             status["error_code"] = result.get("error_code", "tool_failed")
@@ -144,7 +167,18 @@ def main() -> None:
                 timeout=settings.memory_policy.maintenance_timeout, json_mode=True), settings.memory_policy.extraction_max_chars)
             memory = MemoryManager(system_prompt, store, extractor, settings.memory_policy)
             schedule_tool = None
-            tools = [WebSearchTool(settings.tavily_api_key, settings.search_result_limit), WebFetchTool(), ShellTool()]
+            files = ProjectFilesTool(Path.cwd(), blocked_paths=(
+                settings.memory_dir, settings.schedule_db, Path(__file__).resolve().parents[2] / "data",
+            ))
+            python_runner = RunPythonTool(files)
+            stack.callback(python_runner.close)
+            tools = [
+                WebSearchTool(settings.tavily_api_key, settings.search_result_limit), WebFetchTool(), ShellTool(),
+                files, WriteFileTool(files), python_runner,
+                SkillSearchTool(OllamaClient(settings.ollama_host, settings.model, timeout=30, json_mode=True),
+                               Path(__file__).resolve().parents[2] / "resource" / "skills"),
+                AskUserTool(_read_user_reply),
+            ]
             if settings.scheduler_enabled:
                 settings.schedule_db.parent.mkdir(parents=True, exist_ok=True)
                 schedule_store = ScheduleStore(settings.schedule_db)
@@ -238,6 +272,9 @@ def main() -> None:
                     return
                 except KeyboardInterrupt:
                     print("\n本轮已中断，不会自动重放工具调用。")
+                except EOFError:
+                    print("\n再见。")
+                    return
                 except (AgentStateError, OllamaError, MemoryError, OSError, ValueError) as exc:
                     print(f"\n错误：{exc}")
     except (MemoryError, OSError, ValueError, RuntimeError, sqlite3.Error) as exc:

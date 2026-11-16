@@ -40,33 +40,39 @@ class ShellTool:
         if not workdir.is_dir():
             return {"error": f"工作目录不存在或不是目录：{workdir}"}
 
-        # Files avoid buffering unbounded command output in memory.
-        with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
-            try:
-                process = subprocess.Popen(
-                    command, shell=True, executable="/bin/sh", cwd=workdir,
-                    stdin=subprocess.DEVNULL, stdout=stdout, stderr=stderr,
-                    start_new_session=True,
-                )
-            except OSError as exc:
-                return {"error": f"无法启动命令：{exc}"}
-            timed_out = False
-            try:
-                process.wait(timeout=timeout)
-            except subprocess.TimeoutExpired:
-                timed_out = True
-                try:
-                    os.killpg(process.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
-                process.wait()
+        return run_process(command, workdir, timeout, self.output_limit, shell=True, executable="/bin/sh")
 
-            result: dict[str, Any] = {
-                "cwd": str(workdir), "exit_code": process.returncode, "timed_out": timed_out,
-            }
-            for name, stream in (("stdout", stdout), ("stderr", stderr)):
-                stream.seek(0)
-                data = stream.read(self.output_limit + 1)
-                result[name] = data[:self.output_limit].decode("utf-8", errors="replace")
-                result[f"{name}_truncated"] = len(data) > self.output_limit
-            return result
+
+def run_process(command, workdir, timeout, output_limit=16000, **options):
+    def terminate(process):
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        process.wait()
+
+    # Files avoid buffering unbounded command output in memory.
+    with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
+        try:
+            process = subprocess.Popen(
+                command, cwd=workdir, stdin=subprocess.DEVNULL, stdout=stdout, stderr=stderr,
+                start_new_session=True, **options,
+            )
+        except OSError as exc:
+            return {"error": f"无法启动命令：{exc}"}
+        timed_out = False
+        try:
+            process.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            terminate(process)
+        except KeyboardInterrupt:
+            terminate(process)
+            raise
+        result = {"cwd": str(workdir), "exit_code": process.returncode, "timed_out": timed_out}
+        for name, stream in (("stdout", stdout), ("stderr", stderr)):
+            stream.seek(0)
+            data = stream.read(output_limit + 1)
+            result[name] = data[:output_limit].decode("utf-8", errors="replace")
+            result[f"{name}_truncated"] = len(data) > output_limit
+        return result
